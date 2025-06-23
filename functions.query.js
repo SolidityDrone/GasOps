@@ -1,53 +1,52 @@
 const endpoint = args[0].toString();
+
 async function getAverageGasPrice() {
     try {
-        // First get the latest block number
-        const latestBlockResponse = await fetch(endpoint, {
+        const latestBlockResponse = await Functions.makeHttpRequest({
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
+            data: {
                 jsonrpc: '2.0',
                 method: 'eth_blockNumber',
                 params: [],
                 id: 1
-            })
+            }
         });
 
-        const latestBlockData = await latestBlockResponse.json();
+        const latestBlockData = latestBlockResponse.data;
         const latestBlockNumber = parseInt(latestBlockData.result, 16);
 
-        console.log('Latest block:', latestBlockNumber);
-
-        // Calculate start block (10,000 blocks back)
         const startBlock = Math.max(0, latestBlockNumber - 1);
-        const sampleSize = 100; // Sample every 100th block to avoid too many requests
+        const sampleSize = 100;
         const gasPrices = [];
 
-        // Sample gas prices from blocks
         for (let i = 0; i < sampleSize; i++) {
             const blockNumber = startBlock + (i * 100);
 
-            const response = await fetch(endpoint, {
+            const response = await Functions.makeHttpRequest({
+                url: endpoint,
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify({
+                data: {
                     jsonrpc: '2.0',
                     method: 'eth_getBlockByNumber',
                     params: [`0x${blockNumber.toString(16)}`, false],
                     id: 1
-                })
+                }
             });
 
-            const data = await response.json();
+            const data = response.data;
 
             if (data.result && data.result.baseFeePerGas) {
                 const gasPriceWei = parseInt(data.result.baseFeePerGas, 16);
                 gasPrices.push(gasPriceWei);
-                console.log(`Block ${blockNumber}: ${gasPriceWei} wei`);
             }
         }
 
@@ -55,76 +54,64 @@ async function getAverageGasPrice() {
             throw new Error('No gas prices retrieved');
         }
 
-        // Calculate average
         const averageGasPriceWei = Math.floor(gasPrices.reduce((sum, price) => sum + price, 0) / gasPrices.length);
-        const averageGasPriceGwei = averageGasPriceWei / 1e9;
-
-        console.log('Sample size:', gasPrices.length);
-        console.log('Average Gas Price (Wei):', averageGasPriceWei);
-        console.log('Average Gas Price (Gwei):', averageGasPriceGwei);
 
         return Functions.encodeUint256(averageGasPriceWei.toString());
 
     } catch (error) {
-        console.error('Error fetching average gas price:', error);
         return Functions.encodeUint256('0');
     }
 }
 
-// Alternative simpler approach - get current gas price and estimate average
 async function getEstimatedAverageGasPrice() {
     try {
-        // Get current gas price
-        const currentResponse = await fetch(endpoint, {
+        const currentResponse = await Functions.makeHttpRequest({
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
+            data: {
                 jsonrpc: '2.0',
                 method: 'eth_gasPrice',
                 params: [],
                 id: 1
-            })
+            }
         });
 
-        const currentData = await currentResponse.json();
+        const currentData = currentResponse.data;
         const currentGasPriceWei = parseInt(currentData.result, 16);
 
-        // Get fee history for last 10 blocks to estimate average
-        const feeHistoryResponse = await fetch(endpoint, {
+        const feeHistoryResponse = await Functions.makeHttpRequest({
+            url: endpoint,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
+            data: {
                 jsonrpc: '2.0',
                 method: 'eth_feeHistory',
                 params: ['0xa', 'latest', [25, 75]],
                 id: 1
-            })
+            }
         });
 
-        const feeHistoryData = await feeHistoryResponse.json();
+        const feeHistoryData = feeHistoryResponse.data;
 
         if (feeHistoryData.result && feeHistoryData.result.baseFeePerGas) {
             const baseFees = feeHistoryData.result.baseFeePerGas.map(fee => parseInt(fee, 16));
             const averageBaseFee = Math.floor(baseFees.reduce((sum, fee) => sum + fee, 0) / baseFees.length);
 
-            // Estimate average gas price (base fee + priority fee)
             const estimatedAverageGasPrice = averageBaseFee + (currentGasPriceWei - parseInt(feeHistoryData.result.baseFeePerGas[0], 16));
-
-            console.log('Estimated Average Gas Price (Wei):', estimatedAverageGasPrice);
-            console.log('Estimated Average Gas Price (Gwei):', estimatedAverageGasPrice / 1e9);
 
             return Functions.encodeUint256(estimatedAverageGasPrice);
         } else {
-            // Fallback to current gas price
             return Functions.encodeUint256(currentGasPriceWei.toString());
         }
 
     } catch (error) {
-        console.error('Error fetching estimated average gas price:', error);
         return Functions.encodeUint256(Number('0'));
     }
 }
