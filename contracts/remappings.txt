@@ -1,2 +1,2 @@
-@chainlink=/lib/chainlink/
+@chainlink/contracts/=lib/chainlink/contracts/
 @aave=/lib/aave-v3-periphery/
