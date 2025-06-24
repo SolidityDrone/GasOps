@@ -7,7 +7,7 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: Dummy
-    network: mainnet
+    network: base
     source:
       address: "0x0000000000000000000000000000000000000000"
       abi: Dummy
