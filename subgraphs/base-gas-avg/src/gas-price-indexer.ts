@@ -6,7 +6,7 @@ const WEEK: BigInt = BigInt.fromI32(7 * 24 * 60 * 60);
 const MONTH: BigInt = BigInt.fromI32(30 * 24 * 60 * 60);
 
 // Index every 25th block to reduce indexing load while still capturing gas price trends
-const INDEXING_FREQUENCY = 10;
+const INDEXING_FREQUENCY = 25;
 
 export function handleBlock(block: ethereum.Block): void {
     // Only process every N blocks to reduce indexing load

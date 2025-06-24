@@ -1,119 +1,110 @@
-const endpoint = args[0].toString();
+const subgraphUrl = args[0].toString();
+const timeframe = args[1] ? parseInt(args[1].toString()) : 2;
 
-async function getAverageGasPrice() {
+async function main() {
     try {
-        const latestBlockResponse = await Functions.makeHttpRequest({
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            data: {
-                jsonrpc: '2.0',
-                method: 'eth_blockNumber',
-                params: [],
-                id: 1
-            }
-        });
-
-        const latestBlockData = latestBlockResponse.data;
-        const latestBlockNumber = parseInt(latestBlockData.result, 16);
-
-        const startBlock = Math.max(0, latestBlockNumber - 1);
-        const sampleSize = 100;
-        const gasPrices = [];
-
-        for (let i = 0; i < sampleSize; i++) {
-            const blockNumber = startBlock + (i * 100);
-
-            const response = await Functions.makeHttpRequest({
-                url: endpoint,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                data: {
-                    jsonrpc: '2.0',
-                    method: 'eth_getBlockByNumber',
-                    params: [`0x${blockNumber.toString(16)}`, false],
-                    id: 1
-                }
-            });
-
-            const data = response.data;
-
-            if (data.result && data.result.baseFeePerGas) {
-                const gasPriceWei = parseInt(data.result.baseFeePerGas, 16);
-                gasPrices.push(gasPriceWei);
-            }
+        if (subgraphUrl === 'https://api.blobscan.com/stats/blocks') {
+            return await fetchBlobFee();
         }
 
-        if (gasPrices.length === 0) {
-            throw new Error('No gas prices retrieved');
+        const gasData = await getGasAverages(subgraphUrl);
+
+        if (!gasData) {
+            throw new Error('Failed to get gas data from subgraph');
         }
 
-        const averageGasPriceWei = Math.floor(gasPrices.reduce((sum, price) => sum + price, 0) / gasPrices.length);
-
-        return Functions.encodeUint256(averageGasPriceWei.toString());
-
-    } catch (error) {
-        return Functions.encodeUint256('0');
-    }
-}
-
-async function getEstimatedAverageGasPrice() {
-    try {
-        const currentResponse = await Functions.makeHttpRequest({
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            data: {
-                jsonrpc: '2.0',
-                method: 'eth_gasPrice',
-                params: [],
-                id: 1
-            }
-        });
-
-        const currentData = currentResponse.data;
-        const currentGasPriceWei = parseInt(currentData.result, 16);
-
-        const feeHistoryResponse = await Functions.makeHttpRequest({
-            url: endpoint,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            data: {
-                jsonrpc: '2.0',
-                method: 'eth_feeHistory',
-                params: ['0xa', 'latest', [25, 75]],
-                id: 1
-            }
-        });
-
-        const feeHistoryData = feeHistoryResponse.data;
-
-        if (feeHistoryData.result && feeHistoryData.result.baseFeePerGas) {
-            const baseFees = feeHistoryData.result.baseFeePerGas.map(fee => parseInt(fee, 16));
-            const averageBaseFee = Math.floor(baseFees.reduce((sum, fee) => sum + fee, 0) / baseFees.length);
-
-            const estimatedAverageGasPrice = averageBaseFee + (currentGasPriceWei - parseInt(feeHistoryData.result.baseFeePerGas[0], 16));
-
-            return Functions.encodeUint256(estimatedAverageGasPrice);
+        let avgFee;
+        if (timeframe === 1) {
+            avgFee = parseInt(gasData.gas_average_daily);
+        } else if (timeframe === 2) {
+            avgFee = parseInt(gasData.gas_average_weekly);
+        } else if (timeframe === 3) {
+            avgFee = parseInt(gasData.gas_average_monthly);
         } else {
-            return Functions.encodeUint256(currentGasPriceWei.toString());
+            throw new Error('Invalid timeframe. Use 1 (daily), 2 (weekly), or 3 (monthly)');
         }
 
-    } catch (error) {
-        return Functions.encodeUint256(Number('0'));
+        if (!avgFee || avgFee <= 0) {
+            throw new Error('Invalid gas average data');
+        }
+
+        return Functions.encodeUint256(avgFee);
+
+    } catch (e) {
+        throw e;
     }
 }
 
-return getEstimatedAverageGasPrice();
+async function getGasAverages(url) {
+    const query = `
+    {
+      feeAggregator(id: "init") {
+        gas_average_daily
+        gas_average_weekly
+        gas_average_monthly
+        last_updated
+      }
+    }
+  `;
+
+    const resp = await Functions.makeHttpRequest({
+        url: url,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        data: { query },
+    });
+
+    if (resp.data?.errors) {
+        return null;
+    }
+
+    return resp.data?.data?.feeAggregator;
+}
+
+async function fetchBlobFee() {
+    let timeFrameParam;
+    if (timeframe === 1) {
+        timeFrameParam = '1d';
+    } else if (timeframe === 2) {
+        timeFrameParam = '7d';
+    } else if (timeframe === 3) {
+        timeFrameParam = '30d';
+    } else {
+        timeFrameParam = '1d';
+    }
+
+    const url = `${subgraphUrl}?timeFrame=${timeFrameParam}`;
+
+    const resp = await Functions.makeHttpRequest({
+        url: url,
+        method: 'GET',
+        headers: { 'accept': 'application/json' },
+    });
+
+    if (!resp.data || !resp.data.avgBlobGasPrices || resp.data.avgBlobGasPrices.length === 0) {
+        throw new Error('Invalid blob fee data');
+    }
+
+    const prices = resp.data.avgBlobGasPrices;
+    const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+    const avgBlobGasPriceInWei = Math.floor(avgPrice * 1000000000);
+    return Functions.encodeUint256(avgBlobGasPriceInWei);
+}
+
+async function rpcCall(method, params = []) {
+    const resp = await Functions.makeHttpRequest({
+        url: subgraphUrl,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        data: {
+            jsonrpc: '2.0',
+            method: method,
+            params: params,
+            id: 1,
+        },
+    });
+
+    return resp.data;
+}
+
+return main();
