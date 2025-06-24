@@ -38,7 +38,7 @@ async function main() {
 async function getGasAverages(url) {
     const query = `
     {
-      feeAggregator(id: "init") {
+      feeAggregator(id: \\init\\) {
         gas_average_daily
         gas_average_weekly
         gas_average_monthly
@@ -50,7 +50,10 @@ async function getGasAverages(url) {
     const resp = await Functions.makeHttpRequest({
         url: url,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
         data: { query },
     });
 
@@ -95,7 +98,10 @@ async function rpcCall(method, params = []) {
     const resp = await Functions.makeHttpRequest({
         url: subgraphUrl,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
         data: {
             jsonrpc: '2.0',
             method: method,
