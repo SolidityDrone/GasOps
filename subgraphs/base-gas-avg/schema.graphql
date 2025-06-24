@@ -1,0 +1,25 @@
+type Block @entity {
+  id: ID!
+  baseFee: BigInt!
+  timestamp: BigInt!
+  blockId: BigInt!
+}
+
+type FeeAggregator @entity {
+  id: ID!
+  daily: [String!]!
+  weekly: [String!]!
+  monthly: [String!]!
+  gas_average_daily: BigInt
+  gas_average_weekly: BigInt
+  gas_average_monthly: BigInt
+  last_updated: BigInt
+}
+
+type GasPriceSnapshot @entity {
+  id: ID!
+  blockId: String!
+  baseFee: BigInt!
+  timestamp: BigInt!
+  period: String! # "daily", "weekly", "monthly"
+}
