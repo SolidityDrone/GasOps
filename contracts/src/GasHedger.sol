@@ -19,7 +19,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
 
 
     mapping(uint => bool) public exhaustedArrays;
-    mapping(uint chainGasId => string[] args) internal chainGasIdToArgs;
+    mapping(uint chainGasId => string url) internal chainIdToUrl;
     // Storage variables
     address public wethAddress;
     uint256 public lastOptionId;
@@ -51,15 +51,15 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         isInitialized = true;
     }
 
-    function setRPCForChainGasId(uint chainGasId, string[] memory rpcs) public onlyOwner {
-        chainGasIdToArgs[chainGasId] = rpcs;
+    function setUrlForChainId(uint chainGasId, string memory url) public onlyOwner {
+        chainIdToUrl[chainGasId] = url;
     }
 
-    function getRPCForChainGasId(uint chainGasId) public view returns (string[] memory) {
-        return chainGasIdToArgs[chainGasId];
+    function getUrlForChainId(uint chainGasId) public view returns (string memory) {
+        return chainIdToUrl[chainGasId];
     }
   
-    
+
     function createOption(
         bool isCallOption,
         uint256 premium,
@@ -68,7 +68,8 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         uint256 expirationDate,
         uint256 units,
         uint256 capPerUnit,
-        uint64 chainGasId  // chainGasId 0 stands for blob on eth 
+        uint64 chainGasId,
+        Timeframe timeframe
     ) public {
         // Validate parameters
         if (premium == 0) {
@@ -118,9 +119,10 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
             units,
             capPerUnit,
             units,
-            0
+            0,
+            timeframe
         );
-        emit OptionCreated(lastOptionId, msg.sender, isCallOption, premium, strikePrice, expirationDate, buyDeadline, units, capPerUnit, chainGasId);
+        emit OptionCreated(lastOptionId, msg.sender, isCallOption, premium, strikePrice, expirationDate, buyDeadline, units, capPerUnit, chainGasId, timeframe);
     }
  
   
@@ -371,7 +373,8 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
             // Send request to Chainlink
             
             bytes32 requestId = _invokeSendRequest(
-                option.chainGasId
+                option.chainGasId,
+                option.timeframe
             );
             // Store requestId for optionId
             requestIds[requestId] = optionId;
@@ -383,13 +386,27 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
     }
 
     function _invokeSendRequest(
-        uint chainGasId
+        uint chainGasId,
+        Timeframe timeframe
     ) internal returns (bytes32) {
         // Get query from GasQuery library
         string memory query = GasQuery.query;
-        string[] memory args;
-        args = chainGasIdToArgs[chainGasId];
-
+        string[] memory args = new string[](2);
+        args[0] = chainIdToUrl[chainGasId];
+        
+        // Convert Timeframe enum to string representation
+        string memory timeframeStr;
+        if (timeframe == Timeframe.Daily) {
+            timeframeStr = "1";
+        } else if (timeframe == Timeframe.Weekly) {
+            timeframeStr = "2";
+        } else if (timeframe == Timeframe.Monthly) {
+            timeframeStr = "3";
+        } else {
+            timeframeStr = "2"; // default to weekly
+        }
+        args[1] = timeframeStr;
+        
         // Create request
         FunctionsRequest.Request memory req;
         // Initialize the request with JS code
