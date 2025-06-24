@@ -1,37 +1,25 @@
-type AnswerUpdated @entity(immutable: true) {
-  id: Bytes!
-  current: BigInt! # int256
-  roundId: BigInt! # uint256
-  updatedAt: BigInt! # uint256
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
+type Block @entity {
+  id: ID!
+  baseFee: BigInt!
+  timestamp: BigInt!
+  blockId: BigInt!
 }
 
-type NewRound @entity(immutable: true) {
-  id: Bytes!
-  roundId: BigInt! # uint256
-  startedBy: Bytes! # address
-  startedAt: BigInt! # uint256
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
+type FeeAggregator @entity {
+  id: ID!
+  daily: [String!]!
+  weekly: [String!]!
+  monthly: [String!]!
+  gas_average_daily: BigInt
+  gas_average_weekly: BigInt
+  gas_average_monthly: BigInt
+  last_updated: BigInt
 }
 
-type OwnershipTransferRequested @entity(immutable: true) {
-  id: Bytes!
-  from: Bytes! # address
-  to: Bytes! # address
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
-}
-
-type OwnershipTransferred @entity(immutable: true) {
-  id: Bytes!
-  from: Bytes! # address
-  to: Bytes! # address
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
+type GasPriceSnapshot @entity {
+  id: ID!
+  blockId: String!
+  baseFee: BigInt!
+  timestamp: BigInt!
+  period: String! # "daily", "weekly", "monthly"
 }

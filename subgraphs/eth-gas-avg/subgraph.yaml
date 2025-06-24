@@ -1,35 +1,28 @@
-specVersion: 1.0.0
-indexerHints:
-  prune: auto
+specVersion: 0.0.5
+description: Index block information
+repository: https://your-repo
 schema:
   file: ./schema.graphql
+
 dataSources:
-  - kind: ethereum
-    name: EACAggregatorProxy
+  - kind: ethereum/contract
+    name: Dummy
     network: mainnet
     source:
-      address: "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c"
-      abi: EACAggregatorProxy
-      startBlock: 0
+      address: "0x0000000000000000000000000000000000000000"
+      abi: Dummy
+      startBlock: 22775479
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - AnswerUpdated
-        - NewRound
-        - OwnershipTransferRequested
-        - OwnershipTransferred
+        - Block
+        - FeeAggregator
+        - GasPriceSnapshot
       abis:
-        - name: EACAggregatorProxy
-          file: ./abis/EACAggregatorProxy.json
-      eventHandlers:
-        - event: AnswerUpdated(indexed int256,indexed uint256,uint256)
-          handler: handleAnswerUpdated
-        - event: NewRound(indexed uint256,indexed address,uint256)
-          handler: handleNewRound
-        - event: OwnershipTransferRequested(indexed address,indexed address)
-          handler: handleOwnershipTransferRequested
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
-      file: ./src/eac-aggregator-proxy.ts
+        - name: Dummy
+          file: ./abis/Dummy.json
+      file: ./src/gas-price-indexer.ts
+      blockHandlers:
+        - handler: handleBlock
