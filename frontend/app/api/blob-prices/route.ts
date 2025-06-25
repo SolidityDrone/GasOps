@@ -33,18 +33,11 @@ function formatBlobDataToCandlesticks(blobData: BlobData) {
         // Use avgBlobGasPrices as the main metric for the candlestick
         const avgBlobGasPrice = blobData.avgBlobGasPrices[i]
 
-        // Convert wei to gwei and handle edge cases
-        let basePrice: number
-        if (avgBlobGasPrice <= 1) {
-            // If value is 1 or less, it might be a placeholder or error
-            basePrice = 0.001 // Default to 0.001 gwei
-        } else {
-            // Convert from wei to gwei (1 gwei = 10^9 wei)
-            basePrice = avgBlobGasPrice / 1e9
-        }
+        // Create realistic candlestick data based on the average blob gas price
+        const basePrice = avgBlobGasPrice / 1e9 // Convert from wei to gwei for reasonable display
 
         // Add some variation to create OHLC data
-        const variation = Math.max(basePrice * 0.05, 0.001) // Minimum 0.001 gwei variation
+        const variation = basePrice * 0.05 // 5% variation
 
         let open, close, high, low
 
@@ -62,16 +55,13 @@ function formatBlobDataToCandlesticks(blobData: BlobData) {
         high = Math.max(open, close) + Math.random() * variation * 0.5
         low = Math.min(open, close) - Math.random() * variation * 0.5
 
-        // Ensure low is never negative
-        low = Math.max(low, 0.0001)
-
         candlesticks.push({
             time: timestamp,
             open: open,
             high: high,
             low: low,
             close: close,
-            volume: avgBlobGasPrice, // Keep original wei value for volume
+            volume: avgBlobGasPrice, // Use the gas price as volume
             avgBlobGasPrice: avgBlobGasPrice
         })
 
@@ -80,8 +70,8 @@ function formatBlobDataToCandlesticks(blobData: BlobData) {
             console.log(`Day ${i + 1}:`, {
                 date: blobData.days[i],
                 timestamp,
-                avgBlobGasPriceWei: avgBlobGasPrice,
-                basePriceGwei: basePrice,
+                avgBlobGasPrice,
+                basePrice,
                 open,
                 close,
                 high,

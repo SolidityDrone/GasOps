@@ -60,13 +60,13 @@ export function handleTransferSingle(event: TransferSingle): void {
         // Create or update the OptionUnitsMapping for the new user and option
         let option = Option.load(event.params.id.toString());
         if (option) {
-            let mappingId = `${newUser.id}-${option.id}`;
+            let mappingId = `${newUser.id}-${event.params.id.toString()}`;
             let mapping = OptionUnitsMapping.load(mappingId);
             if (!mapping) {
                 mapping = new OptionUnitsMapping(mappingId);
             }
             mapping.user = newUser.id!;
-            mapping.option = option.id;
+            mapping.option = event.params.id.toString();
             mapping.units = event.params.value;
             mapping.save();
         }

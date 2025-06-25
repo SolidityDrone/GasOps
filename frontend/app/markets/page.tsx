@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import Navbar from '@/components/Navbar'
 import TradingViewChart from '@/components/TradingViewChart'
 import Image from 'next/image'
-import { Clock, Filter, TrendingUp, TrendingDown } from 'lucide-react'
+import { Clock, Filter, TrendingUp, TrendingDown, Activity, BarChart3 } from 'lucide-react'
 import { formatGwei } from 'viem'
 import {
     formatTimestamp,
@@ -341,6 +341,103 @@ export default function MarketsPage() {
 
             <Navbar />
 
+            {/* Market Statistics */}
+            <section className="relative z-10 container mx-auto px-4 sm:px-6 py-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {/* Total Active Options */}
+                    <div className="relative">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg blur opacity-30" />
+                        <Card className="relative bg-black/90 border-2 border-purple-400 backdrop-blur-sm shadow-lg shadow-purple-400/30 h-32">
+                            <CardContent className="p-6 h-full flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-purple-400 text-sm font-medium uppercase tracking-wider">Active Options</p>
+                                        <p className="text-white text-2xl font-bold">{filteredOptions.length}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg flex items-center justify-center">
+                                        <Activity className="w-6 h-6 text-white" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Average Premium */}
+                    <div className="relative">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg blur opacity-30" />
+                        <Card className="relative bg-black/90 border-2 border-green-400 backdrop-blur-sm shadow-lg shadow-green-400/30 h-32">
+                            <CardContent className="p-6 h-full flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-green-400 text-sm font-medium uppercase tracking-wider">Avg Premium</p>
+                                        <p className="text-white text-2xl font-bold">
+                                            {filteredOptions.length > 0
+                                                ? (filteredOptions.reduce((total, option) => {
+                                                    return total + parseFloat(formatGwei(BigInt(option.premium)))
+                                                }, 0) / filteredOptions.length).toFixed(5).replace(/\.?0+$/, '') || '0'
+                                                : '0'
+                                            }
+                                        </p>
+                                        <p className="text-green-300 text-xs">Gwei</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg flex items-center justify-center">
+                                        <TrendingUp className="w-6 h-6 text-white" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Total Volume */}
+                    <div className="relative">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg blur opacity-30" />
+                        <Card className="relative bg-black/90 border-2 border-blue-400 backdrop-blur-sm shadow-lg shadow-blue-400/30 h-32">
+                            <CardContent className="p-6 h-full flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-blue-400 text-sm font-medium uppercase tracking-wider">Total Volume</p>
+                                        <p className="text-white text-2xl font-bold">
+                                            {filteredOptions.reduce((total, option) => {
+                                                const units = parseInt(option.unitsLeft || '0')
+                                                const premium = parseFloat(formatGwei(BigInt(option.premium)))
+                                                return total + (units * premium)
+                                            }, 0).toFixed(5).replace(/\.?0+$/, '') || '0'}
+                                        </p>
+                                        <p className="text-blue-300 text-xs">Gwei</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center">
+                                        <BarChart3 className="w-6 h-6 text-white" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Call/Put Ratio */}
+                    <div className="relative">
+                        <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg blur opacity-30" />
+                        <Card className="relative bg-black/90 border-2 border-orange-400 backdrop-blur-sm shadow-lg shadow-orange-400/30 h-32">
+                            <CardContent className="p-6 h-full flex flex-col justify-between">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-orange-400 text-sm font-medium uppercase tracking-wider">Call/Put Ratio</p>
+                                        <p className="text-white text-2xl font-bold">
+                                            {filteredOptions.length > 0
+                                                ? `${filteredOptions.filter(opt => opt.isCall).length}/${filteredOptions.filter(opt => !opt.isCall).length}`
+                                                : '0/0'
+                                            }
+                                        </p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-lg flex items-center justify-center">
+                                        <TrendingDown className="w-6 h-6 text-white" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </section>
+
             {/* Market Selection Bar */}
             <section className="relative z-10 container mx-auto px-4 sm:px-6 py-6">
                 <div className="bg-black/80 border-2 border-pink-500 rounded-lg backdrop-blur-sm shadow-lg shadow-pink-500/30 p-2">
@@ -400,70 +497,210 @@ export default function MarketsPage() {
                 </div>
             </section>
 
-            {/* Trading View Chart */}
+            {/* Trading View Chart and Order Book Side by Side */}
             <section className="relative z-10 container mx-auto px-4 sm:px-6 mb-8">
-                <TradingViewChart
-                    chain={selectedMarket === 'eth-blob' ? 'eth' : selectedMarket === 'eth-gas' ? 'eth' : selectedMarket === 'base-gas' ? 'base' : 'arb'}
-                    timeRange={selectedTimeframe}
-                    height={400}
-                />
-            </section>
-
-            {/* Order Book */}
-            <section className="relative z-10 container mx-auto px-4 sm:px-6 mb-8">
-                <div className="bg-black/80 border-2 border-purple-500 rounded-lg backdrop-blur-sm shadow-lg shadow-purple-500/30 p-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold text-white">Order Book</h3>
-                        {loading && (
-                            <div className="flex items-center space-x-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
-                                <span className="text-gray-400 text-sm">Loading...</span>
-                            </div>
-                        )}
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Trading View Chart - Left Side */}
+                    <div className="w-full lg:w-2/5">
+                        <TradingViewChart
+                            chain={selectedMarket === 'eth-blob' ? 'eth-blob' : selectedMarket === 'eth-gas' ? 'eth' : selectedMarket === 'base-gas' ? 'base' : 'arb'}
+                            timeRange={selectedTimeframe}
+                            height={480}
+                        />
                     </div>
 
-                    {/* Trading Interface Filters */}
-                    <div className="bg-black/60 border border-purple-400 rounded-lg p-4 mb-4">
-                        <div className="flex flex-wrap gap-4 items-center">
-                            {/* Timeframe Filter */}
-                            <div className="flex items-center space-x-2">
-                                <span className="text-white font-semibold">Average Format:</span>
-                                <div className="flex space-x-1">
-                                    {timeframes.map((timeframe) => (
-                                        <Button
-                                            key={timeframe.id}
-                                            onClick={() => setSelectedTimeframe(timeframe.id)}
-                                            variant={selectedTimeframe === timeframe.id ? 'default' : 'outline'}
-                                            size="sm"
-                                            className="text-xs"
-                                        >
-                                            {timeframe.name}
-                                        </Button>
-                                    ))}
+                    {/* Order Book - Right Side */}
+                    <div className="w-full lg:w-3/5">
+                        <div className="bg-black/80 border-2 border-purple-500 rounded-lg backdrop-blur-sm shadow-lg shadow-purple-500/30 p-4 h-full">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xl font-bold text-white">Order Book</h3>
+                                {loading && (
+                                    <div className="flex items-center space-x-2">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                                        <span className="text-gray-400 text-sm">Loading...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Trading Interface Filters */}
+                            <div className="bg-black/60 border border-purple-400 rounded-lg p-4 mb-4">
+                                <div className="flex flex-wrap gap-4 items-center">
+                                    {/* Timeframe Filter */}
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-white font-semibold text-sm">Average Format:</span>
+                                        <div className="flex space-x-1">
+                                            {timeframes.map((timeframe) => (
+                                                <Button
+                                                    key={timeframe.id}
+                                                    onClick={() => setSelectedTimeframe(timeframe.id)}
+                                                    variant={selectedTimeframe === timeframe.id ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    className="text-xs"
+                                                >
+                                                    {timeframe.name}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Option Type Filter */}
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-white font-semibold text-sm">Type:</span>
+                                        <div className="flex space-x-1">
+                                            {optionTypes.map((type) => (
+                                                <Button
+                                                    key={type.id}
+                                                    onClick={() => setSelectedOptionType(type.id)}
+                                                    variant={selectedOptionType === type.id ? 'default' : 'outline'}
+                                                    size="sm"
+                                                    className={`text-xs ${selectedOptionType === type.id
+                                                        ? type.id === 'call'
+                                                            ? 'bg-green-600 hover:bg-green-700 border-green-500'
+                                                            : 'bg-red-600 hover:bg-red-700 border-red-500'
+                                                        : ''
+                                                        }`}
+                                                >
+                                                    {type.name}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Option Type Filter */}
-                            <div className="flex items-center space-x-2">
-                                <span className="text-white font-semibold">Type:</span>
-                                <div className="flex space-x-1">
-                                    {optionTypes.map((type) => (
-                                        <Button
-                                            key={type.id}
-                                            onClick={() => setSelectedOptionType(type.id)}
-                                            variant={selectedOptionType === type.id ? 'default' : 'outline'}
-                                            size="sm"
-                                            className={`text-xs ${selectedOptionType === type.id
-                                                ? type.id === 'call'
-                                                    ? 'bg-green-600 hover:bg-green-700 border-green-500'
-                                                    : 'bg-red-600 hover:bg-red-700 border-red-500'
-                                                : ''
-                                                }`}
-                                        >
-                                            {type.name}
-                                        </Button>
-                                    ))}
-                                </div>
+                            <div className="overflow-x-auto max-h-76 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-black/90">
+                                        <tr className="border-b border-gray-700">
+                                            <th
+                                                className="text-left py-2 px-2 text-gray-300 cursor-pointer hover:text-white transition-colors text-xs"
+                                                onClick={() => handleSort('premium')}
+                                            >
+                                                <div className="flex items-center space-x-1">
+                                                    <span>Premium</span>
+                                                    {sortField === 'premium' && (
+                                                        <span className="text-xs">
+                                                            {sortDirection === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                            <th
+                                                className="text-left py-2 px-2 text-gray-300 cursor-pointer hover:text-white transition-colors text-xs"
+                                                onClick={() => handleSort('strikePrice')}
+                                            >
+                                                <div className="flex items-center space-x-1">
+                                                    <span>Strike</span>
+                                                    {sortField === 'strikePrice' && (
+                                                        <span className="text-xs">
+                                                            {sortDirection === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                            <th
+                                                className="text-left py-2 px-2 text-gray-300 cursor-pointer hover:text-white transition-colors text-xs"
+                                                onClick={() => handleSort('capPerUnit')}
+                                            >
+                                                <div className="flex items-center space-x-1">
+                                                    <span>Cap/Unit</span>
+                                                    {sortField === 'capPerUnit' && (
+                                                        <span className="text-xs">
+                                                            {sortDirection === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                            <th
+                                                className="text-left py-2 px-2 text-gray-300 cursor-pointer hover:text-white transition-colors text-xs"
+                                                onClick={() => handleSort('expirationDate')}
+                                            >
+                                                <div className="flex items-center space-x-1">
+                                                    <span>Exp</span>
+                                                    {sortField === 'expirationDate' && (
+                                                        <span className="text-xs">
+                                                            {sortDirection === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                            <th
+                                                className="text-left py-2 px-2 text-gray-300 cursor-pointer hover:text-white transition-colors text-xs"
+                                                onClick={() => handleSort('deadlineDate')}
+                                            >
+                                                <div className="flex items-center space-x-1">
+                                                    <span>Deadline</span>
+                                                    {sortField === 'deadlineDate' && (
+                                                        <span className="text-xs">
+                                                            {sortDirection === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                            <th className="text-left py-2 px-2 text-gray-300 text-xs">
+                                                Units
+                                            </th>
+                                            <th className="text-left py-2 px-2 text-gray-300 text-xs">
+                                                Buy
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortedOptions.map((option) => (
+                                            <tr key={option.id} className="border-b border-gray-800 hover:bg-gray-800/50">
+                                                <td className="py-2 px-1 text-white text-xs">
+                                                    {formatGwei(BigInt(option.premium))}
+                                                </td>
+                                                <td className="py-2 px-1 text-white text-xs">
+                                                    {formatGwei(BigInt(option.strikePrice))}
+                                                </td>
+                                                <td className="py-2 px-1 text-white text-xs">
+                                                    {formatGwei(BigInt(option.capPerUnit))}
+                                                </td>
+                                                <td className="py-2 px-1 text-gray-300 text-xs">
+                                                    <div className="flex flex-col">
+                                                        <span>{formatTimestampWithSeconds(option.expirationDate)}</span>
+                                                        <span className="text-xs text-red-400">
+                                                            {getExpirationCountdown(option.expirationDate)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-2 px-1 text-gray-300 text-xs">
+                                                    <div className="flex flex-col">
+                                                        <span>{formatTimestampWithSeconds(option.deadlineDate)}</span>
+                                                        <span className="text-xs text-yellow-400">
+                                                            {getDeadlineCountdown(option.deadlineDate)}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-2 px-1 text-white text-xs">
+                                                    {option.unitsLeft || '0'}/{option.units}
+                                                </td>
+                                                <td className="py-2 px-1">
+                                                    <div className="flex">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max={parseInt(option.unitsLeft || '0')}
+                                                            placeholder="Units"
+                                                            className="bg-gray-800 border border-gray-600 rounded-l px-1 py-1 text-white text-xs w-12 focus:outline-none focus:border-purple-400"
+                                                        />
+                                                        <button
+                                                            className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-2 py-1 rounded-r border border-purple-600 transition-colors"
+                                                        >
+                                                            Buy
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {sortedOptions.length === 0 && !loading && (
+                                    <div className="text-center py-8 text-gray-400 text-sm">
+                                        No options found matching the selected criteria
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

@@ -72,6 +72,103 @@ export const GET_ALL_ACTIVE_OPTIONS = `
   }
 `;
 
+// New query to get user's open options (options they've bought)
+export const GET_USER_OPEN_OPTIONS = `
+  query GetUserOpenOptions($userAddress: String!) {
+    optionUnitsMappings(
+      where: {user_contains_nocase: $userAddress}
+    ) {
+      option {
+        id
+        isCall
+        strikePrice
+        capPerUnit
+        responseValue
+        expirationDate
+        hasToPay
+        chainGasId
+        timeframe
+      }
+      units
+      claimed
+      errorClaim
+    }
+  }
+`;
+
+// New query to get user's created options (options they've written)
+export const GET_USER_CREATED_OPTIONS = `
+  query GetUserCreatedOptions($userAddress: String!, $currentTimestamp: BigInt!) {
+    options(
+      where: {
+        writer_contains_nocase: $userAddress
+        expirationDate_gt: $currentTimestamp
+        isDeleted: false
+      }
+    ) {
+      id
+      expirationDate
+      premium
+      premiumCollected
+      units
+      unitsLeft
+      strikePrice
+      responseValue
+      countervalue
+      capPerUnit
+      isCall
+      chainGasId
+      timeframe
+    }
+  }
+`;
+
+// Query to get option details by ID (for open options)
+export const GET_OPTION_BY_ID = `
+  query GetOptionById($optionId: String!) {
+    option(id: $optionId) {
+      id
+      writer
+      isCall
+      premium
+      strikePrice
+      expirationDate
+      deadlineDate
+      units
+      unitsLeft
+      capPerUnit
+      hasToPay
+      optionPrice
+      countervalue
+      premiumCollected
+      responseValue
+      chainGasId
+      timeframe
+      isDeleted
+      isErrored
+      isActive
+      isPaused
+    }
+  }
+`;
+
+// Query to get user's total portfolio stats
+export const GET_USER_PORTFOLIO_STATS = `
+  query GetUserPortfolioStats($userAddress: String!) {
+    user(id: $userAddress) {
+      id
+      options
+      optionUnitsMapping {
+        id
+        option
+        units
+        claimed
+        errorClaim
+      }
+    }
+  }
+`;
+
 // Helper function to get current timestamp
 export const getCurrentTimestamp = (): number => {
   return Math.floor(Date.now() / 1000);

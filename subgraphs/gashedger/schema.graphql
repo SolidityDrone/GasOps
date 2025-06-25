@@ -20,6 +20,7 @@ type Option @entity {
   isErrored: Boolean
   isActive: Boolean
   isPaused: Boolean
+  optionUnitsMappings: [OptionUnitsMapping!]! @derivedFrom(field: "option")
 }
 
 type User @entity {
@@ -31,7 +32,7 @@ type User @entity {
 type OptionUnitsMapping @entity {
   id: ID!
   user: User! @relation(name: "UserOptionsMapping")
-  option: String!
+  option: Option! @relation(name: "OptionUserMapping")
   units: BigInt!
   claimed: Boolean
   errorClaim: Boolean

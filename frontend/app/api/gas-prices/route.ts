@@ -9,6 +9,23 @@ import {
     getPeriodFromTimeframe
 } from '@/lib/gasQueries'
 
+// New query for getting only the latest snapshot
+const GET_LATEST_GAS_PRICE = `
+  query GetLatestGasPrice {
+    gasPriceSnapshots(
+      first: 1
+      orderBy: timestamp
+      orderDirection: desc
+    ) {
+      id
+      timestamp
+      baseFee
+      blockId
+      period
+    }
+  }
+`;
+
 // Helper function to fetch all snapshots with pagination
 async function fetchAllSnapshots(endpoint: string, baseQuery: string, variables: any) {
     let allSnapshots: any[] = []
@@ -93,11 +110,48 @@ async function fetchAllSnapshots(endpoint: string, baseQuery: string, variables:
     return allSnapshots
 }
 
+// Helper function to fetch only the latest snapshot
+async function fetchLatestSnapshot(endpoint: string) {
+    try {
+        console.log(`Fetching latest snapshot from ${endpoint}`)
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                query: GET_LATEST_GAS_PRICE
+            }),
+            signal: AbortSignal.timeout(10000) // 10 second timeout for single query
+        })
+
+        if (!response.ok) {
+            throw new Error(`GraphQL request failed: ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (data.errors) {
+            throw new Error(`GraphQL query failed: ${data.errors[0]?.message || 'Unknown error'}`)
+        }
+
+        const snapshots = data.data?.gasPriceSnapshots || []
+        console.log(`Latest snapshot query returned ${snapshots.length} snapshots`)
+
+        return snapshots.length > 0 ? snapshots[0] : null
+    } catch (error) {
+        console.error('Error fetching latest snapshot:', error)
+        throw error
+    }
+}
+
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)
         const chain = searchParams.get('chain') // 'eth', 'arb', 'base'
         const timeRange = searchParams.get('timeRange') // '1D', '7D', '30D'
+        const latest = searchParams.get('latest') // 'true' to get only latest snapshot
 
         if (!chain || !SUBGRAPH_ENDPOINTS[chain as keyof typeof SUBGRAPH_ENDPOINTS]) {
             return NextResponse.json(
@@ -107,6 +161,38 @@ export async function GET(request: NextRequest) {
         }
 
         const endpoint = SUBGRAPH_ENDPOINTS[chain as keyof typeof SUBGRAPH_ENDPOINTS]
+
+        // If latest=true, fetch only the latest snapshot
+        if (latest === 'true') {
+            try {
+                const latestSnapshot = await fetchLatestSnapshot(endpoint)
+
+                if (latestSnapshot) {
+                    const formattedData = formatGasPriceData([latestSnapshot])
+                    return NextResponse.json({
+                        success: true,
+                        data: formattedData,
+                        chain,
+                        latest: true,
+                        count: 1
+                    })
+                } else {
+                    return NextResponse.json({
+                        success: false,
+                        error: 'No latest snapshot found',
+                        chain
+                    })
+                }
+            } catch (error) {
+                console.error('Error fetching latest snapshot:', error)
+                return NextResponse.json(
+                    { error: 'Failed to fetch latest snapshot', details: error instanceof Error ? error.message : 'Unknown error' },
+                    { status: 500 }
+                )
+            }
+        }
+
+        // Original logic for fetching historical data
         let query: string
         let variables: any
 

@@ -91,6 +91,8 @@ export default function TradingViewChart({
 
     // Fetch gas price data
     const fetchGasPriceData = async () => {
+        if (!isMounted) return;
+
         try {
             setLoading(true)
             setError(null)
@@ -110,11 +112,15 @@ export default function TradingViewChart({
                 signal: AbortSignal.timeout(60000) // 60 second timeout
             })
 
+            if (!isMounted) return;
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`)
             }
 
             const result = await response.json()
+
+            if (!isMounted) return;
 
             if (result.success && result.data) {
                 console.log('Data received:', result.data)
@@ -126,6 +132,8 @@ export default function TradingViewChart({
                 throw new Error(result.error || 'Failed to fetch data')
             }
         } catch (err) {
+            if (!isMounted) return;
+
             console.error('Error fetching data:', err)
             if (err instanceof Error && err.name === 'TimeoutError') {
                 setError('Request timed out. Please try again.')
@@ -133,7 +141,9 @@ export default function TradingViewChart({
                 setError(err instanceof Error ? err.message : 'Failed to fetch data')
             }
         } finally {
-            setLoading(false)
+            if (isMounted) {
+                setLoading(false)
+            }
         }
     }
 
@@ -150,148 +160,179 @@ export default function TradingViewChart({
             return
         }
 
-        console.log('Creating chart with dimensions:', {
-            width: chartContainerRef.current.clientWidth,
-            height: height
-        })
+        // Add a small delay to ensure container is properly sized
+        const timer = setTimeout(() => {
+            console.log('Creating chart with dimensions:', {
+                width: chartContainerRef.current?.clientWidth,
+                height: height
+            })
 
-        // Create chart
-        const chart = createChart(chartContainerRef.current, {
-            width: chartContainerRef.current.clientWidth,
-            height: height,
-            layout: {
-                background: { color: '#000000' },
-                textColor: '#ffffff',
-            },
-            grid: {
-                vertLines: { color: '#2B2B43' },
-                horzLines: { color: '#2B2B43' },
-            },
-            crosshair: {
-                mode: 1,
-            },
-            rightPriceScale: {
-                borderColor: '#2B2B43',
-                ...(chain === 'eth-blob' && {
-                    // For blob data, show gwei values
-                    scaleMargins: {
-                        top: 0.1,
-                        bottom: 0.1,
-                    },
-                })
-            },
-            timeScale: {
-                borderColor: '#2B2B43',
-                timeVisible: true,
-                secondsVisible: false, // Hide seconds for hourly view
-                ...(chain === 'eth-blob' && {
+            if (!chartContainerRef.current) return
+
+            // Create chart
+            const chart = createChart(chartContainerRef.current, {
+                width: chartContainerRef.current.clientWidth,
+                height: height,
+                layout: {
+                    background: { color: '#000000' },
+                    textColor: '#ffffff',
+                },
+                grid: {
+                    vertLines: { color: '#2B2B43' },
+                    horzLines: { color: '#2B2B43' },
+                },
+                crosshair: {
+                    mode: 1,
+                },
+                rightPriceScale: {
+                    borderColor: '#2B2B43',
+                    formatter: {
+                        format: (price: number) => {
+                            const gweiPrice = price / 1e9
+                            return gweiPrice.toFixed(4) + ' Gwei'
+                        }
+                    }
+                },
+                timeScale: {
+                    borderColor: '#2B2B43',
                     timeVisible: true,
-                    secondsVisible: false,
-                    // For blob data, we want to show days more prominently
-                    tickMarkFormatter: (time: number) => {
-                        const date = new Date(time * 1000)
-                        return date.toLocaleDateString()
+                    secondsVisible: false, // Hide seconds for hourly view
+                    ...(chain === 'eth-blob' && {
+                        timeVisible: true,
+                        secondsVisible: false,
+                        // For blob data, we want to show days more prominently
+                        tickMarkFormatter: (time: number) => {
+                            const date = new Date(time * 1000)
+                            return date.toLocaleDateString()
+                        }
+                    })
+                },
+            })
+
+            console.log('Chart created successfully:', chart)
+
+            // Create candlestick series
+            const candlestickSeries = chart.addSeries(CandlestickSeries, {
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderVisible: false,
+                wickUpColor: '#26a69a',
+                wickDownColor: '#ef5350',
+            })
+
+            seriesRef.current = candlestickSeries
+
+            // Use real data if available, otherwise use fallback data
+            let formattedData;
+
+            if (data.length > 0) {
+                if (chain === 'eth-blob') {
+                    // Blob data is already daily, no need to group into hourly candles
+                    formattedData = data;
+                    console.log('Using blob data directly, data length:', formattedData.length)
+                    console.log('First 5 blob data points:', formattedData.slice(0, 5))
+                    console.log('Last 5 blob data points:', formattedData.slice(-5))
+                } else {
+                    // Group the real data into hourly candles for gas data
+                    formattedData = groupToHourlyCandles(data);
+                    console.log('Real data grouped into hourly candles, first 5:', formattedData.slice(0, 5))
+                }
+            } else {
+                // Fallback data - create hourly candles
+                const now = Math.floor(Date.now() / 1000)
+                formattedData = Array.from({ length: 24 }, (_, i) => {
+                    const basePrice = 20 + Math.sin(i / 3) * 5 + Math.random() * 2
+                    const open = basePrice
+                    const close = basePrice + (Math.random() - 0.5) * 2
+                    const high = Math.max(open, close) + Math.random() * 1
+                    const low = Math.min(open, close) - Math.random() * 1
+                    return {
+                        time: now - (23 - i) * 3600, // Hourly timestamps
+                        open: open,
+                        high: high,
+                        low: low,
+                        close: close,
+                        volume: 0
                     }
                 })
-            },
-        })
+                console.log('Using fallback hourly data, first 5:', formattedData.slice(0, 5))
+            }
 
-        console.log('Chart created successfully:', chart)
+            // Sort data by time in ascending order and remove duplicates
+            formattedData = formattedData
+                .sort((a: any, b: any) => a.time - b.time)
+                .filter((item: any, index: number, array: any[]) => {
+                    if (index === 0) return true;
+                    return item.time !== array[index - 1].time;
+                });
 
-        // Create candlestick series
-        const candlestickSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#26a69a',
-            downColor: '#ef5350',
-            borderVisible: false,
-            wickUpColor: '#26a69a',
-            wickDownColor: '#ef5350',
-        })
+            console.log('Final formatted data, first 5:', formattedData.slice(0, 5))
+            console.log('Final formatted data, last 5:', formattedData.slice(-5))
+            console.log('Total data points:', formattedData.length)
 
-        seriesRef.current = candlestickSeries
-
-        // Use real data if available, otherwise use fallback data
-        let formattedData;
-
-        if (data.length > 0) {
-            if (chain === 'eth-blob') {
-                // Blob data is already daily, no need to group into hourly candles
-                formattedData = data;
-                console.log('Using blob data directly, data length:', formattedData.length)
-                console.log('First 5 blob data points:', formattedData.slice(0, 5))
-                console.log('Last 5 blob data points:', formattedData.slice(-5))
+            if (formattedData.length > 0) {
+                candlestickSeries.setData(formattedData)
+                chart.timeScale().fitContent()
+                console.log(`${chain === 'eth-blob' ? 'Daily' : 'Hourly'} candlestick data set successfully, data length:`, formattedData.length)
             } else {
-                // Group the real data into hourly candles for gas data
-                formattedData = groupToHourlyCandles(data);
-                console.log('Real data grouped into hourly candles, first 5:', formattedData.slice(0, 5))
+                console.log('No data to set')
             }
-        } else {
-            // Fallback data - create hourly candles
-            const now = Math.floor(Date.now() / 1000)
-            formattedData = Array.from({ length: 24 }, (_, i) => {
-                const basePrice = 20 + Math.sin(i / 3) * 5 + Math.random() * 2
-                const open = basePrice
-                const close = basePrice + (Math.random() - 0.5) * 2
-                const high = Math.max(open, close) + Math.random() * 1
-                const low = Math.min(open, close) - Math.random() * 1
-                return {
-                    time: now - (23 - i) * 3600, // Hourly timestamps
-                    open: open,
-                    high: high,
-                    low: low,
-                    close: close,
-                    volume: 0
+
+            // Store chart reference
+            chartRef.current = chart
+
+            // Handle resize
+            const handleResize = () => {
+                if (chartContainerRef.current && chartRef.current) {
+                    chartRef.current.applyOptions({
+                        width: chartContainerRef.current.clientWidth
+                    })
                 }
-            })
-            console.log('Using fallback hourly data, first 5:', formattedData.slice(0, 5))
-        }
-
-        // Sort data by time in ascending order and remove duplicates
-        formattedData = formattedData
-            .sort((a: any, b: any) => a.time - b.time)
-            .filter((item: any, index: number, array: any[]) => {
-                if (index === 0) return true;
-                return item.time !== array[index - 1].time;
-            });
-
-        console.log('Final formatted data, first 5:', formattedData.slice(0, 5))
-        console.log('Final formatted data, last 5:', formattedData.slice(-5))
-        console.log('Total data points:', formattedData.length)
-
-        if (formattedData.length > 0) {
-            candlestickSeries.setData(formattedData)
-            chart.timeScale().fitContent()
-            console.log(`${chain === 'eth-blob' ? 'Daily' : 'Hourly'} candlestick data set successfully, data length:`, formattedData.length)
-        } else {
-            console.log('No data to set')
-        }
-
-        // Store chart reference
-        chartRef.current = chart
-
-        // Handle resize
-        const handleResize = () => {
-            if (chartContainerRef.current && chartRef.current) {
-                chartRef.current.applyOptions({
-                    width: chartContainerRef.current.clientWidth
-                })
             }
-        }
 
-        window.addEventListener('resize', handleResize)
+            // Add ResizeObserver for container size changes
+            const resizeObserver = new ResizeObserver(() => {
+                handleResize()
+            })
+
+            if (chartContainerRef.current) {
+                resizeObserver.observe(chartContainerRef.current)
+            }
+
+            window.addEventListener('resize', handleResize)
+
+            return () => {
+                console.log('Cleaning up chart')
+                window.removeEventListener('resize', handleResize)
+                resizeObserver.disconnect()
+                if (chartRef.current) {
+                    chartRef.current.remove()
+                }
+            }
+        }, 100) // 100ms delay to ensure container is sized
 
         return () => {
-            console.log('Cleaning up chart')
-            window.removeEventListener('resize', handleResize)
-            if (chartRef.current) {
-                chartRef.current.remove()
-            }
+            clearTimeout(timer)
         }
     }, [isMounted, loading, data, height])
 
     // Fetch data when chain changes (not timeframe since we always show hourly)
     useEffect(() => {
-        fetchGasPriceData()
-    }, [chain]) // Removed timeRange dependency
+        if (!isMounted) return;
+
+        let isMountedRef = true;
+
+        const fetchData = async () => {
+            if (!isMountedRef) return;
+            await fetchGasPriceData();
+        };
+
+        fetchData();
+
+        return () => {
+            isMountedRef = false;
+        };
+    }, [chain, isMounted]) // Added isMounted dependency
 
     if (loading) {
         return (
@@ -347,12 +388,12 @@ export default function TradingViewChart({
         <div className="bg-black/80 border-2 border-green-500 rounded-lg backdrop-blur-sm shadow-lg shadow-green-500/30 p-4">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-white">
-                    {chain === 'eth-blob' ? 'Ethereum Blob Gas Prices (Gwei)' :
+                    {chain === 'eth-blob' ? 'Ethereum Blob Chart' :
                         `${getChainDisplayName(chain)} - Hourly Chart`}
                 </h3>
                 <div className="text-sm text-gray-400">
                     {chain === 'eth-blob' ?
-                        `${data.length} daily blob gas prices (gwei)` :
+                        `${data.length} daily blob data points` :
                         `${data.length} data points → ${groupToHourlyCandles(data).length} hourly candles`}
                 </div>
             </div>
