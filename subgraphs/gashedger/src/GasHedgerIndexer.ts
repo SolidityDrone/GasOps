@@ -67,7 +67,7 @@ export function handleTransferSingle(event: TransferSingle): void {
             }
             mapping.user = newUser.id!;
             mapping.option = option.id;
-            mapping.units = option.units;
+            mapping.units = event.params.value;
             mapping.save();
         }
     }
@@ -77,7 +77,7 @@ export function handleOptionBought(event: OptionBought): void {
     let option = Option.load(event.params.optionId.toString());
     if (option) {
         if (option.premiumCollected && option.unitsLeft) {
-            option.premiumCollected = (option.premiumCollected!).plus(option.premium);
+            option.premiumCollected = option.premiumCollected!.plus(event.params.totalPrice);
             option.unitsLeft = option.unitsLeft!.minus(event.params.units);
         }
         option.save();
@@ -111,8 +111,8 @@ export function handleErroredClaimed(event: erroredClaimed): void {
 export function handleResponse(event: Response): void {
     let option = Option.load(event.params.optionId.toString());
     if (option) {
-        if (event.params.result) {
-            option.responseValue = event.params.result;
+        if (event.params.response) {
+            option.responseValue = event.params.response;
             option.hasToPay = event.params.hasToPay;
         }
         if (!option.responseValue) {
@@ -145,7 +145,7 @@ export function handleOptionCreated(event: OptionCreated): void {
         option.countervalue = (event.params.capPerUnit).times(event.params.units);
         option.deadlineDate = event.params.buyDeadline;
         option.premiumCollected = BigInt.fromI32(0);
-        option.chainGasId = BigInt.fromI64(event.params.chainGasId);
+        option.chainGasId = BigInt.fromI32(event.params.chainGasId.toI32());
         option.timeframe = getTimeframeString(event.params.timeframe);
         option.isActive = false;
         option.isPaused = false;

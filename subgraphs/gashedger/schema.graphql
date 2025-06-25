@@ -16,7 +16,6 @@ type Option @entity {
   responseValue: BigInt
   chainGasId: BigInt!
   timeframe: String!
-  users: [User!]! @derivedFrom(field: "options")
   isDeleted: Boolean
   isErrored: Boolean
   isActive: Boolean
@@ -25,14 +24,14 @@ type Option @entity {
 
 type User @entity {
   id: ID!
-  options: [Option!]
+  options: [String!]
   optionUnitsMapping: [OptionUnitsMapping!]! @derivedFrom(field: "user")
 }
 
 type OptionUnitsMapping @entity {
   id: ID!
   user: User! @relation(name: "UserOptionsMapping")
-  option: Option! @relation(name: "OptionUserMapping")
+  option: String!
   units: BigInt!
   claimed: Boolean
   errorClaim: Boolean
