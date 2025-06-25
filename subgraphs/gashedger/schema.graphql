@@ -1,0 +1,39 @@
+type Option @entity {
+  id: ID!
+  writer: String!
+  isCall: Boolean!
+  premium: BigInt!
+  strikePrice: BigInt!
+  expirationDate: BigInt!
+  deadlineDate: BigInt!
+  units: BigInt!
+  unitsLeft: BigInt
+  capPerUnit: BigInt!
+  hasToPay: Boolean
+  optionPrice: BigInt
+  countervalue: BigInt!
+  premiumCollected: BigInt
+  responseValue: BigInt
+  chainGasId: BigInt!
+  timeframe: String!
+  users: [User!]! @derivedFrom(field: "options")
+  isDeleted: Boolean
+  isErrored: Boolean
+  isActive: Boolean
+  isPaused: Boolean
+}
+
+type User @entity {
+  id: ID!
+  options: [Option!]
+  optionUnitsMapping: [OptionUnitsMapping!]! @derivedFrom(field: "user")
+}
+
+type OptionUnitsMapping @entity {
+  id: ID!
+  user: User! @relation(name: "UserOptionsMapping")
+  option: Option! @relation(name: "OptionUserMapping")
+  units: BigInt!
+  claimed: Boolean
+  errorClaim: Boolean
+}

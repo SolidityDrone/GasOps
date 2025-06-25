@@ -22,8 +22,10 @@ interface IGasHedger {
     error InvalidOptionId(uint256 id);
     error OptionOngoing(uint256 id);
     error OptionNotDeactived(uint256 id);
-   
-
+    error InvalidChainGasId(uint256 chainGasId);
+    error OptionNotExpired(uint256 id);
+    error OptionStillActive(uint256 id);
+    
     struct Option {
         address writer;
         uint64 chainGasId;

@@ -1,0 +1,40 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: GasEdger
+    network: base-sepolia
+    source:
+      address: "0x55ef9bA96E80c634E6652fb164fa61517F5611d1"
+      abi: GasHedger
+      startBlock: 7234955
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Option
+        - User
+        - OptionUnitsMapping
+      abis:
+        - name: GasHedger
+          file: ./abis/GasHedger_ABI.json
+      eventHandlers:
+        - event: OptionBought(indexed uint256,indexed address,uint256,uint256)
+          handler: handleOptionBought
+        - event: OptionClaimed(indexed uint256,indexed address,uint256,uint256)
+          handler: handleOptionClaimed
+        - event: OptionCreated(indexed uint256,indexed address,bool,uint256,uint256,uint256,uint256,uint256,uint256,uint64,uint8)
+          handler: handleOptionCreated
+        - event: Response(indexed uint256,indexed bool,indexed bytes32,uint256,bytes)
+          handler: handleResponse
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle
+        - event: erroredClaimed(indexed uint256,indexed address,uint256)
+          handler: handleErroredClaimed
+        - event: OptionDeleted(indexed uint256)
+          handler: handleOptionDeleted
+      file: ./src/GasHedgerIndexer.ts

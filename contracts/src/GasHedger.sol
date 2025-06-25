@@ -81,7 +81,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         if (buyDeadline <= block.timestamp) {
             revert InvalidBuyDeadline(buyDeadline);
         }
-        if (expirationDate > buyDeadline) {
+        if (expirationDate <= buyDeadline) {
             revert InvalidExpirationDate(expirationDate);
         }
         if (units == 0) {
@@ -89,6 +89,9 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         }
         if (capPerUnit == 0) {
             revert InvalidCapPerUnit(capPerUnit);
+        }
+        if (bytes(chainIdToUrl[chainGasId]).length == 0) {
+            revert InvalidChainGasId(chainGasId);
         }
         // Calculate total collateral from the writer
         uint256 collateral = capPerUnit * units;
@@ -185,11 +188,11 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         if (isPaused(option.statuses)) {
             revert OptionPaused(id);
         }
-        // Check if option is expired
-        if (block.timestamp >= option.expirationDate) {
+        // Check if option is expired (can only claim after expiration)
+        if (block.timestamp < option.expirationDate) {
             revert OptionExpired(id);
         }
-        // Check if option is deactived
+        // Check if option is not active (should be inactive after settlement)
         if (isActive(option.statuses)) {
             revert OptionNotActive(id);
         }
@@ -212,52 +215,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         emit OptionClaimed(id, msg.sender, units, price);
     }
 
-    function claimForPausedOption(uint256 id, uint256 units, bool isWriter) public returns(uint256) {
-        // Get option from storage
-        Option storage option = options[id];
-        // Check if options has to pay
-        if (!hasToPay(option.statuses)) {
-            revert OptionNotSolvible(id);
-        }
-        // Check if option is paused
-        if (isPaused(option.statuses)) {
-            revert OptionPaused(id);
-        }
-        // define price var
-        uint256 price;
-        // Check if for writer
-        if (isWriter) {
-            // Check if the caller is the writer
-            if (msg.sender != option.writer) {
-                revert OptionNotSolvible(id);
-            }
-            // Calculate total collateral
-            price = (option.capPerUnit - option.premium) * units;
-            // check price is greater than 0
-            if (price == 0) {
-                revert OptionNotSolvible(id);
-            }
-            // Transfer collateral from the contract to the writer
-            require(IERC20(wethAddress).transfer(msg.sender, price), "GasHedger: failed to transfer weth");
-        } else {
-        // Check if the buyer has enough units
-        if (balanceOf(msg.sender, id) < units) {
-            revert NotEnoughUnits(id);
-        }
-        // Burn option NFT from the buyer
-        _burn(msg.sender, id, units);
-        // Calculate total collateral
-        price = option.premium * units;
-        // Transfer collateral from the contract to the buyer
-        require(IERC20(wethAddress).transfer(msg.sender, price), "GasHedger: failed to transfer weth");
-        // Increment units left
-        option.unitsLeft += units;
-        }
-        emit erroredClaimed(id, msg.sender, price);
-        return price;
-    }
 
-   
 
     function deleteOption(uint256 id) public {
         // Get option from storage
@@ -359,8 +317,8 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
                 revert OptionPaused(optionId);
             }
             // Check if option is expired
-            if (block.timestamp >= option.expirationDate) {
-                revert OptionExpired(optionId);
+            if (block.timestamp < option.expirationDate) {
+                revert OptionNotExpired(optionId);
             }
             // Check if option is deactived
             if (!isActive(option.statuses)) {
