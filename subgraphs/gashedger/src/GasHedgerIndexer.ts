@@ -114,6 +114,7 @@ export function handleResponse(event: Response): void {
         if (event.params.response) {
             option.responseValue = event.params.response;
             option.hasToPay = event.params.hasToPay;
+            option.isActive = false;
         }
         if (!option.responseValue) {
             option.isErrored = true;

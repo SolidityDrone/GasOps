@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Navbar from '@/components/Navbar'
+import TradingViewChart from '@/components/TradingViewChart'
 import Image from 'next/image'
 import { Clock, Filter, TrendingUp, TrendingDown } from 'lucide-react'
+import { formatGwei } from 'viem'
 import {
     formatTimestamp,
     formatBigInt,
@@ -60,14 +62,6 @@ const timeframes = [
 const optionTypes = [
     { id: 'call', name: 'Call' },
     { id: 'put', name: 'Put' }
-]
-
-// Price filter options
-const priceFilters = [
-    { id: 'all', name: 'All Prices' },
-    { id: 'low', name: 'Low (< 0.1 ETH)' },
-    { id: 'medium', name: 'Medium (0.1-1 ETH)' },
-    { id: 'high', name: 'High (> 1 ETH)' }
 ]
 
 // Mock options data for demonstration
@@ -141,7 +135,7 @@ const getColorClasses = (color: string) => {
 // Chain ID mapping
 const getChainId = (marketId: string): string => {
     const chainMap: { [key: string]: string } = {
-        'eth-blob': '1',
+        'eth-blob': '0',
         'eth-gas': '1',
         'base-gas': '8453',
         'arb-gas': '42161'
@@ -149,13 +143,88 @@ const getChainId = (marketId: string): string => {
     return chainMap[marketId] || '1'
 }
 
+// Helper function to format timestamp with seconds
+const formatTimestampWithSeconds = (timestamp: string): string => {
+    return new Date(parseInt(timestamp) * 1000).toLocaleString();
+};
+
+// Helper function to get countdown to deadline
+const getDeadlineCountdown = (deadlineDate: string): string => {
+    const now = Math.floor(Date.now() / 1000);
+    const deadline = parseInt(deadlineDate);
+    const diff = deadline - now;
+
+    if (diff <= 0) return 'Expired';
+
+    const days = Math.floor(diff / 86400);
+    const hours = Math.floor((diff % 86400) / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = diff % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+};
+
+// Helper function to get countdown to expiration
+const getExpirationCountdown = (expirationDate: string): string => {
+    const now = Math.floor(Date.now() / 1000);
+    const expiration = parseInt(expirationDate);
+    const diff = expiration - now;
+
+    if (diff <= 0) return 'Expired';
+
+    const days = Math.floor(diff / 86400);
+    const hours = Math.floor((diff % 86400) / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = diff % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+};
+
 export default function MarketsPage() {
     const [selectedMarket, setSelectedMarket] = useState('eth-gas')
     const [selectedTimeframe, setSelectedTimeframe] = useState('1D')
     const [selectedOptionType, setSelectedOptionType] = useState('call')
-    const [selectedPriceFilter, setSelectedPriceFilter] = useState('all')
     const [options, setOptions] = useState<Option[]>(mockOptions)
     const [loading, setLoading] = useState(false)
+    const [countdownUpdate, setCountdownUpdate] = useState(0)
+    const [sortField, setSortField] = useState<string>('')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+    const [inputValues, setInputValues] = useState<{ [key: string]: string }>({})
+
+    // Update countdown every second
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCountdownUpdate(prev => prev + 1)
+        }, 1000)
+
+        return () => clearInterval(interval)
+    }, [])
+
+    // Handle input change with validation
+    const handleInputChange = (optionId: string, value: string, maxUnits: number) => {
+        const numValue = parseInt(value) || 0
+        const clampedValue = Math.min(numValue, maxUnits)
+        setInputValues(prev => ({
+            ...prev,
+            [optionId]: clampedValue.toString()
+        }))
+    }
+
+    // Sorting function
+    const handleSort = (field: string) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortField(field)
+            setSortDirection('asc')
+        }
+    }
 
     // Function to fetch options from our API route
     const fetchOptions = async (chainGasId: string, timeframe: string) => {
@@ -207,13 +276,46 @@ export default function MarketsPage() {
             (selectedOptionType === 'call' && option.isCall) ||
             (selectedOptionType === 'put' && !option.isCall)
 
-        const premium = parseFloat(formatBigInt(option.premium))
-        const matchesPriceFilter = selectedPriceFilter === 'all' ||
-            (selectedPriceFilter === 'low' && premium < 0.1) ||
-            (selectedPriceFilter === 'medium' && premium >= 0.1 && premium <= 1) ||
-            (selectedPriceFilter === 'high' && premium > 1)
+        return matchesOptionType
+    })
 
-        return matchesOptionType && matchesPriceFilter
+    // Sort options
+    const sortedOptions = [...filteredOptions].sort((a, b) => {
+        if (!sortField) return 0
+
+        let aValue: any
+        let bValue: any
+
+        switch (sortField) {
+            case 'premium':
+                aValue = parseFloat(formatGwei(BigInt(a.premium)))
+                bValue = parseFloat(formatGwei(BigInt(b.premium)))
+                break
+            case 'strikePrice':
+                aValue = parseFloat(formatGwei(BigInt(a.strikePrice)))
+                bValue = parseFloat(formatGwei(BigInt(b.strikePrice)))
+                break
+            case 'capPerUnit':
+                aValue = parseFloat(formatGwei(BigInt(a.capPerUnit)))
+                bValue = parseFloat(formatGwei(BigInt(b.capPerUnit)))
+                break
+            case 'expirationDate':
+                aValue = parseInt(a.expirationDate)
+                bValue = parseInt(b.expirationDate)
+                break
+            case 'deadlineDate':
+                aValue = parseInt(a.deadlineDate)
+                bValue = parseInt(b.deadlineDate)
+                break
+            default:
+                return 0
+        }
+
+        if (sortDirection === 'asc') {
+            return aValue > bValue ? 1 : -1
+        } else {
+            return aValue < bValue ? 1 : -1
+        }
     })
 
     return (
@@ -298,73 +400,13 @@ export default function MarketsPage() {
                 </div>
             </section>
 
-            {/* Trading Interface Filters */}
+            {/* Trading View Chart */}
             <section className="relative z-10 container mx-auto px-4 sm:px-6 mb-8">
-                <div className="bg-black/80 border-2 border-cyan-500 rounded-lg backdrop-blur-sm shadow-lg shadow-cyan-500/30 p-4">
-                    <div className="flex flex-wrap gap-4 items-center">
-                        {/* Timeframe Filter */}
-                        <div className="flex items-center space-x-2">
-                            <span className="text-white font-semibold">Timeframe:</span>
-                            <div className="flex space-x-1">
-                                {timeframes.map((timeframe) => (
-                                    <Button
-                                        key={timeframe.id}
-                                        onClick={() => setSelectedTimeframe(timeframe.id)}
-                                        variant={selectedTimeframe === timeframe.id ? 'default' : 'outline'}
-                                        size="sm"
-                                        className="text-xs"
-                                    >
-                                        {timeframe.name}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Option Type Filter */}
-                        <div className="flex items-center space-x-2">
-                            <span className="text-white font-semibold">Type:</span>
-                            <div className="flex space-x-1">
-                                {optionTypes.map((type) => (
-                                    <Button
-                                        key={type.id}
-                                        onClick={() => setSelectedOptionType(type.id)}
-                                        variant={selectedOptionType === type.id ? 'default' : 'outline'}
-                                        size="sm"
-                                        className="text-xs"
-                                    >
-                                        {type.name}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Price Filter */}
-                        <div className="flex items-center space-x-2">
-                            <span className="text-white font-semibold">Price:</span>
-                            <select
-                                value={selectedPriceFilter}
-                                onChange={(e) => setSelectedPriceFilter(e.target.value)}
-                                className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs"
-                            >
-                                {priceFilters.map((filter) => (
-                                    <option key={filter.id} value={filter.id}>
-                                        {filter.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Trading View Chart Placeholder */}
-            <section className="relative z-10 container mx-auto px-4 sm:px-6 mb-8">
-                <div className="bg-black/80 border-2 border-green-500 rounded-lg backdrop-blur-sm shadow-lg shadow-green-500/30 p-6">
-                    <h3 className="text-xl font-bold text-white mb-4">Trading Chart</h3>
-                    <div className="h-64 bg-gray-800 rounded-lg flex items-center justify-center">
-                        <span className="text-gray-400">Chart component will be integrated here</span>
-                    </div>
-                </div>
+                <TradingViewChart
+                    chain={selectedMarket === 'eth-blob' ? 'eth' : selectedMarket === 'eth-gas' ? 'eth' : selectedMarket === 'base-gas' ? 'base' : 'arb'}
+                    timeRange={selectedTimeframe}
+                    height={400}
+                />
             </section>
 
             {/* Order Book */}
@@ -379,61 +421,54 @@ export default function MarketsPage() {
                             </div>
                         )}
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-700">
-                                    <th className="text-left py-2 px-2 text-gray-300">Type</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Premium</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Strike Price</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Expiration</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Units Left</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Writer</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Chain</th>
-                                    <th className="text-left py-2 px-2 text-gray-300">Timeframe</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredOptions.map((option) => (
-                                    <tr key={option.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                                        <td className="py-2 px-2">
-                                            <Badge variant={option.isCall ? 'default' : 'secondary'}>
-                                                {option.isCall ? 'Call' : 'Put'}
-                                            </Badge>
-                                        </td>
-                                        <td className="py-2 px-2 text-white">
-                                            {formatBigInt(option.premium)} ETH
-                                        </td>
-                                        <td className="py-2 px-2 text-white">
-                                            {formatBigInt(option.strikePrice)} ETH
-                                        </td>
-                                        <td className="py-2 px-2 text-gray-300">
-                                            {formatTimestamp(option.expirationDate)}
-                                        </td>
-                                        <td className="py-2 px-2 text-white">
-                                            {formatBigInt(option.unitsLeft || '0')}
-                                        </td>
-                                        <td className="py-2 px-2 text-gray-300">
-                                            {option.writer.slice(0, 6)}...{option.writer.slice(-4)}
-                                        </td>
-                                        <td className="py-2 px-2 text-gray-300">
-                                            {getChainName(option.chainGasId)}
-                                        </td>
-                                        <td className="py-2 px-2 text-gray-300">
-                                            {getTimeframeDisplay(option.timeframe)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {filteredOptions.length === 0 && !loading && (
-                            <div className="text-center py-8 text-gray-400">
-                                No options found matching the selected criteria
+
+                    {/* Trading Interface Filters */}
+                    <div className="bg-black/60 border border-purple-400 rounded-lg p-4 mb-4">
+                        <div className="flex flex-wrap gap-4 items-center">
+                            {/* Timeframe Filter */}
+                            <div className="flex items-center space-x-2">
+                                <span className="text-white font-semibold">Average Format:</span>
+                                <div className="flex space-x-1">
+                                    {timeframes.map((timeframe) => (
+                                        <Button
+                                            key={timeframe.id}
+                                            onClick={() => setSelectedTimeframe(timeframe.id)}
+                                            variant={selectedTimeframe === timeframe.id ? 'default' : 'outline'}
+                                            size="sm"
+                                            className="text-xs"
+                                        >
+                                            {timeframe.name}
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
-                        )}
+
+                            {/* Option Type Filter */}
+                            <div className="flex items-center space-x-2">
+                                <span className="text-white font-semibold">Type:</span>
+                                <div className="flex space-x-1">
+                                    {optionTypes.map((type) => (
+                                        <Button
+                                            key={type.id}
+                                            onClick={() => setSelectedOptionType(type.id)}
+                                            variant={selectedOptionType === type.id ? 'default' : 'outline'}
+                                            size="sm"
+                                            className={`text-xs ${selectedOptionType === type.id
+                                                ? type.id === 'call'
+                                                    ? 'bg-green-600 hover:bg-green-700 border-green-500'
+                                                    : 'bg-red-600 hover:bg-red-700 border-red-500'
+                                                : ''
+                                                }`}
+                                        >
+                                            {type.name}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
         </div>
     )
-} 
+}
