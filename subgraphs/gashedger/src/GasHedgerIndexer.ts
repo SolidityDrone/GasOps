@@ -147,7 +147,7 @@ export function handleOptionCreated(event: OptionCreated): void {
         option.premiumCollected = BigInt.fromI32(0);
         option.chainGasId = BigInt.fromI32(event.params.chainGasId.toI32());
         option.timeframe = getTimeframeString(event.params.timeframe);
-        option.isActive = false;
+        option.isActive = true;
         option.isPaused = false;
         option.hasToPay = false;
         option.isDeleted = false;
@@ -158,12 +158,12 @@ export function handleOptionCreated(event: OptionCreated): void {
 
 function getTimeframeString(timeframe: i32): string {
     if (timeframe == 0) {
-        return "Daily";
+        return "1D";
     } else if (timeframe == 1) {
-        return "Weekly";
+        return "7D";
     } else if (timeframe == 2) {
-        return "Monthly";
+        return "30D";
     } else {
-        return "Weekly"; // default
+        return "7D"; // default
     }
 }

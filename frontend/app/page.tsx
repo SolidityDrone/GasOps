@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import Navbar from "@/components/Navbar"
+import Link from "next/link"
 import {
   TrendingUp,
   Zap,
@@ -49,32 +51,7 @@ export default function Component() {
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse" />
 
       {/* Navigation - Neon Bar */}
-      <nav className="relative z-10 border-b-2 border-pink-500 bg-black/90 backdrop-blur-md shadow-lg shadow-pink-500/20">
-        <div className="container mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-pink-500/50 border-2 border-pink-400">
-                  <GasStationIcon className="w-6 h-6 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
-              </div>
-              <div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                  GasOps
-                </span>
-                <div className="text-xs text-green-400 font-mono uppercase tracking-wider animate-pulse">ONLINE</div>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <Button className="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-400 hover:via-purple-400 hover:to-cyan-400 text-white border-2 border-pink-400 font-bold uppercase tracking-wider shadow-lg shadow-pink-500/50 hover:shadow-pink-500/75 transition-all duration-300 px-6 py-2">
-                <Power className="w-4 h-4 mr-2" />
-                Launch App
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero Section - Neon Cyberpunk */}
       <section className="relative z-10 container mx-auto px-4 sm:px-6 py-20">
@@ -109,15 +86,17 @@ export default function Component() {
           </div>
 
           <div className="flex justify-center">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-400 hover:via-purple-400 hover:to-cyan-400 text-white border-2 border-pink-400 font-black uppercase tracking-wider px-16 py-6 text-xl shadow-2xl shadow-pink-500/50 hover:shadow-pink-500/75 transition-all duration-300 group"
-            >
-              <Power className="mr-4 w-8 h-8 animate-pulse" />
-              Launch App
-              <ArrowRight className="ml-4 w-8 h-8 group-hover:translate-x-2 transition-transform" />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000" />
-            </Button>
+            <Link href="/markets">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-400 hover:via-purple-400 hover:to-cyan-400 text-white border-2 border-pink-400 font-black uppercase tracking-wider px-16 py-6 text-xl shadow-2xl shadow-pink-500/50 hover:shadow-pink-500/75 transition-all duration-300 group"
+              >
+                <Power className="mr-4 w-8 h-8 animate-pulse" />
+                Launch App
+                <ArrowRight className="ml-4 w-8 h-8 group-hover:translate-x-2 transition-transform" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -635,15 +614,17 @@ export default function Component() {
             <p className="text-xl text-cyan-300 mb-12 max-w-3xl mx-auto font-medium">
               <span className="text-pink-400">▶</span> Join the future of gas price risk management on Ethereum
             </p>
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-400 hover:via-purple-400 hover:to-cyan-400 text-white border-2 border-pink-400 font-black uppercase tracking-wider px-16 py-6 text-xl shadow-2xl shadow-pink-500/50 hover:shadow-pink-500/75 transition-all duration-300 group"
-            >
-              <Power className="mr-4 w-8 h-8 animate-pulse" />
-              Launch Protocol
-              <ArrowRight className="ml-4 w-8 h-8 group-hover:translate-x-2 transition-transform" />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000" />
-            </Button>
+            <Link href="/markets">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-400 hover:via-purple-400 hover:to-cyan-400 text-white border-2 border-pink-400 font-black uppercase tracking-wider px-16 py-6 text-xl shadow-2xl shadow-pink-500/50 hover:shadow-pink-500/75 transition-all duration-300 group"
+              >
+                <Power className="mr-4 w-8 h-8 animate-pulse" />
+                Launch Protocol
+                <ArrowRight className="ml-4 w-8 h-8 group-hover:translate-x-2 transition-transform" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
