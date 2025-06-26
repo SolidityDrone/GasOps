@@ -10,10 +10,19 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
+import TransactionModal from '@/components/TransactionModal';
+import { GasHedgerAddress, GasHedger_ABI } from '@/lib/abi/GasHedger_ABI';
+import { FakeWETHAddress, ERC20_ABI } from '@/lib/abi/ERC20_ABI';
+import { formatGwei } from 'viem';
 
-// You'll need to add these contract addresses and ABIs
-// const GasHedgerAddress = 'YOUR_CONTRACT_ADDRESS';
-// const WETHAddress = 'YOUR_WETH_ADDRESS';
+interface TransactionStep {
+    id: string
+    title: string
+    description: string
+    status: 'pending' | 'loading' | 'success' | 'error'
+    error?: string
+    hash?: string
+}
 
 interface CreateOptionProps {
     // No props needed for this implementation
@@ -21,7 +30,7 @@ interface CreateOptionProps {
 
 function CreateOption() {
     const [transacting, setTransacting] = useState(false);
-    const account = useAccount();
+    const { address } = useAccount();
     const [strike, setStrike] = useState('');
     const [premium, setPremium] = useState('');
     const [units, setUnits] = useState('');
@@ -33,19 +42,41 @@ function CreateOption() {
     const [chainGasId, setChainGasId] = useState(0);
     const [timeframe, setTimeframe] = useState(0);
 
-    const [step, setStep] = useState(0);
-    const {
-        data: hash,
-        isPending,
-        error,
-        writeContract
-    } = useWriteContract();
+    // Transaction modal state
+    const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+    const [transactionSteps, setTransactionSteps] = useState<TransactionStep[]>([]);
+    const [currentTransaction, setCurrentTransaction] = useState<{
+        isCall: boolean;
+        premium: bigint;
+        strikePrice: bigint;
+        buyDeadline: bigint;
+        expirationDate: bigint;
+        units: bigint;
+        capPerUnit: bigint;
+        chainGasId: number;
+        timeframe: number;
+        totalCollateral: bigint;
+    } | null>(null);
 
-    const { isLoading: isConfirming, isSuccess: isConfirmed } =
-        useWaitForTransactionReceipt({ hash });
+    const { writeContract: writeApprove, data: approveHash } = useWriteContract();
+    const { writeContract: writeCreateOption, data: createOptionHash } = useWriteContract();
+
+    const { isLoading: isApproveLoading, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({ hash: approveHash });
+    const { isLoading: isCreateOptionLoading, isSuccess: isCreateOptionSuccess } = useWaitForTransactionReceipt({ hash: createOptionHash });
+
+    // Read allowance
+    const { data: allowance } = useReadContract({
+        address: FakeWETHAddress,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: address ? [address, GasHedgerAddress] : undefined,
+        query: {
+            enabled: !!address,
+        },
+    });
 
     const convertToWei = (value: string) => {
-        return BigInt(Math.floor(parseFloat(value) * 10 ** 18)); // WETH has 18 decimals
+        return BigInt(Math.floor(parseFloat(value) * 10 ** 9)); // Convert Gwei to Wei (9 decimals)
     };
 
     const isValidInput = (value: string) => {
@@ -64,121 +95,185 @@ function CreateOption() {
         const s_chainGasId = formData.get('chainGasId') as string;
         const s_timeframe = formData.get('timeframe') as string;
 
+        console.log('=== DATE DEBUG ===');
+        console.log('Raw expirationDate input:', s_expirationDate);
+        console.log('Raw deadlineDate input:', s_deadlineDate);
+
         const unixDead = BigInt(Math.floor(new Date(s_deadlineDate).getTime() / 1000));
         const unixExp = BigInt(Math.floor(new Date(s_expirationDate).getTime() / 1000));
+
+        console.log('Converted deadline (Unix):', unixDead.toString());
+        console.log('Converted expiration (Unix):', unixExp.toString());
+        console.log('Deadline date:', new Date(Number(unixDead) * 1000).toISOString());
+        console.log('Expiration date:', new Date(Number(unixExp) * 1000).toISOString());
+        console.log('==================');
 
         if (!isValidInput(s_strike) || !isValidInput(s_premium) || !isValidInput(s_capPerUnit)) {
             alert('Values must be at least 0.000001');
             return;
         }
 
-        const isCallValue = formData.get('isCall') === 'on';
+        const isCallValue = formData.get('isCall') !== 'on';
+        const totalCollateral = BigInt(s_units) * convertToWei(s_capPerUnit);
 
-        setIsCall(isCallValue);
-        setStrike(s_strike);
-        setPremium(s_premium);
-        setUnits(s_units);
-        setExpirationDate(unixExp);
-        setDeadlineDate(unixDead);
-        setCapPerUnit(s_capPerUnit);
-        setChainGasId(parseInt(s_chainGasId));
-        setTimeframe(parseInt(s_timeframe));
-        setStep(1);
-        setTransacting(true);
+        setCurrentTransaction({
+            isCall: isCallValue,
+            premium: convertToWei(s_premium),
+            strikePrice: convertToWei(s_strike),
+            buyDeadline: unixDead,
+            expirationDate: unixExp,
+            units: BigInt(s_units),
+            capPerUnit: convertToWei(s_capPerUnit),
+            chainGasId: parseInt(s_chainGasId),
+            timeframe: parseInt(s_timeframe),
+            totalCollateral
+        });
+
+        // Check if allowance is sufficient
+        const hasSufficientAllowance = allowance && allowance >= totalCollateral;
+
+        const steps: TransactionStep[] = [];
+
+        if (!hasSufficientAllowance) {
+            steps.push({
+                id: 'approve',
+                title: 'Approve WETH Spending',
+                description: `Approve ${formatGwei(totalCollateral)} WETH for option creation`,
+                status: 'pending'
+            });
+        } else {
+            steps.push({
+                id: 'approve',
+                title: 'Approve WETH Spending',
+                description: `Approve ${formatGwei(totalCollateral)} WETH for option creation`,
+                status: 'success'
+            });
+        }
+
+        steps.push({
+            id: 'createOption',
+            title: 'Create Option',
+            description: `Create ${isCallValue ? 'call' : 'put'} option with ${formatGwei(convertToWei(s_premium))} premium`,
+            status: hasSufficientAllowance ? 'pending' : 'pending'
+        });
+
+        setTransactionSteps(steps);
+        setIsTransactionModalOpen(true);
+    };
+
+    // Handle transaction step execution
+    const handleExecuteStep = async (stepId: string) => {
+        if (!currentTransaction) return;
 
         try {
-            // First approve WETH spending
-            await writeContract({
-                address: '0x4200000000000000000000000000000000000006', // WETH address (you may need to change this)
-                abi: [
-                    {
-                        "inputs": [
-                            { "name": "spender", "type": "address" },
-                            { "name": "amount", "type": "uint256" }
-                        ],
-                        "name": "approve",
-                        "outputs": [{ "name": "", "type": "bool" }],
-                        "stateMutability": "nonpayable",
-                        "type": "function"
-                    }
-                ],
-                functionName: 'approve',
-                args: ['YOUR_GASHEDGER_ADDRESS', BigInt(s_units) * convertToWei(s_capPerUnit)],
-            });
-        } catch (err) {
-            console.error(err);
+            if (stepId === 'approve') {
+                // Check if approval is actually needed
+                const hasSufficientAllowance = allowance && allowance >= currentTransaction.totalCollateral;
+                if (hasSufficientAllowance) {
+                    // Skip approval and move to create option
+                    setTransactionSteps(prev => prev.map(step =>
+                        step.id === 'createOption' ? { ...step, status: 'pending' } : step
+                    ));
+                    return;
+                }
+
+                // Update step to loading
+                setTransactionSteps(prev => prev.map(step =>
+                    step.id === 'approve' ? { ...step, status: 'loading' } : step
+                ));
+
+                // Execute approve
+                writeApprove({
+                    address: FakeWETHAddress,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
+                    args: [GasHedgerAddress, currentTransaction.totalCollateral]
+                });
+            } else if (stepId === 'createOption') {
+                // Update step to loading
+                setTransactionSteps(prev => prev.map(step =>
+                    step.id === 'createOption' ? { ...step, status: 'loading' } : step
+                ));
+
+                // Log the raw args array
+                console.log('=== RAW TRANSACTION ARGS ===');
+                console.log('isCall:', currentTransaction.isCall);
+                console.log('premium:', currentTransaction.premium.toString());
+                console.log('strikePrice:', currentTransaction.strikePrice.toString());
+                console.log('buyDeadline:', currentTransaction.buyDeadline.toString());
+                console.log('expirationDate:', currentTransaction.expirationDate.toString());
+                console.log('units:', currentTransaction.units.toString());
+                console.log('capPerUnit:', currentTransaction.capPerUnit.toString());
+                console.log('chainGasId:', BigInt(currentTransaction.chainGasId).toString());
+                console.log('timeframe:', currentTransaction.timeframe);
+                console.log('============================');
+
+                // Execute create option
+                writeCreateOption({
+                    address: GasHedgerAddress,
+                    abi: GasHedger_ABI,
+                    functionName: 'createOption',
+                    args: [
+                        currentTransaction.isCall,
+                        currentTransaction.premium,
+                        currentTransaction.strikePrice,
+                        currentTransaction.buyDeadline,
+                        currentTransaction.expirationDate,
+                        currentTransaction.units,
+                        currentTransaction.capPerUnit,
+                        BigInt(currentTransaction.chainGasId),
+                        currentTransaction.timeframe
+                    ]
+                });
+            }
+        } catch (error) {
+            console.error('Transaction failed:', error);
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === stepId ? {
+                    ...step,
+                    status: 'error',
+                    error: error instanceof Error ? error.message : 'Transaction failed'
+                } : step
+            ));
         }
     };
 
+    // Handle transaction status updates
     useEffect(() => {
-        if (isConfirmed && step === 1) {
-            const timeout = setTimeout(() => {
-                setStep(2);
-                try {
-                    writeContract({
-                        address: 'YOUR_GASHEDGER_ADDRESS', // Replace with actual address
-                        abi: [
-                            {
-                                "inputs": [
-                                    { "name": "isCallOption", "type": "bool" },
-                                    { "name": "premium", "type": "uint256" },
-                                    { "name": "strikePrice", "type": "uint256" },
-                                    { "name": "buyDeadline", "type": "uint256" },
-                                    { "name": "expirationDate", "type": "uint256" },
-                                    { "name": "units", "type": "uint256" },
-                                    { "name": "capPerUnit", "type": "uint256" },
-                                    { "name": "chainGasId", "type": "uint64" },
-                                    { "name": "timeframe", "type": "uint8" }
-                                ],
-                                "name": "createOption",
-                                "outputs": [],
-                                "stateMutability": "nonpayable",
-                                "type": "function"
-                            }
-                        ],
-                        functionName: 'createOption',
-                        args: [
-                            isCall,
-                            convertToWei(premium),
-                            convertToWei(strike),
-                            deadlineDate,
-                            expirationDate,
-                            BigInt(units),
-                            convertToWei(capPerUnit),
-                            BigInt(chainGasId),
-                            BigInt(timeframe)
-                        ],
-                    });
-                } catch (err) {
-                    console.error(err);
-                }
-            }, 3000);
-
-            return () => clearTimeout(timeout);
+        if (isApproveLoading) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'approve' ? { ...step, status: 'loading' } : step
+            ));
+        } else if (isApproveSuccess && approveHash) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'approve' ? { ...step, status: 'success', hash: approveHash } : step
+            ));
         }
-        if (isConfirmed && step === 2) {
-            const timeout = setTimeout(() => {
-                setTransacting(false);
-            }, 3000);
-
-            return () => clearTimeout(timeout);
-        }
-    }, [isConfirmed, step, isCall, premium, strike, deadlineDate, expirationDate, units, capPerUnit, chainGasId, timeframe]);
+    }, [isApproveLoading, isApproveSuccess, approveHash]);
 
     useEffect(() => {
-        if (error) {
-            const timeout = setTimeout(() => {
-                setTransacting(false);
+        if (isCreateOptionLoading) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'createOption' ? { ...step, status: 'loading' } : step
+            ));
+        } else if (isCreateOptionSuccess && createOptionHash) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'createOption' ? { ...step, status: 'success', hash: createOptionHash } : step
+            ));
+            // Close modal after successful creation
+            setTimeout(() => {
+                setIsTransactionModalOpen(false);
+                setCurrentTransaction(null);
             }, 3000);
-            return () => clearTimeout(timeout);
         }
-    }, [error]);
+    }, [isCreateOptionLoading, isCreateOptionSuccess, createOptionHash]);
 
     useEffect(() => {
         const capValue = parseFloat(capPerUnit);
         const unitsValue = parseFloat(units);
         if (!isNaN(capValue) && !isNaN(unitsValue)) {
-            setLockedWETH(capValue * unitsValue);
+            // Convert from Gwei to ETH: (capPerUnit * units) / 1e9
+            setLockedWETH((capValue * unitsValue) / 1e9);
         } else {
             setLockedWETH(0);
         }
@@ -201,53 +296,6 @@ function CreateOption() {
             </div>
 
             <Navbar />
-
-            {transacting && (
-                <div className="fixed top-0 left-0 w-screen h-screen flex items-center justify-center backdrop-blur-[1px] bg-gray-900 bg-opacity-30 z-50">
-                    <div className="bg-gray-900/90 border border-gray-700 items-center text-center text-sm rounded-lg p-6 h-36 w-80">
-                        {!isConfirmed && !error ? (
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-4"></div>
-                        ) : !error ? (
-                            <div className="flex mb-2 items-center justify-center">
-                                <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-                                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex mb-2 items-center justify-center">
-                                <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </div>
-                            </div>
-                        )}
-
-                        {transacting && !isConfirming && !error && !isConfirmed && (
-                            <div className="text-white">Waiting for user confirmation...</div>
-                        )}
-                        {isConfirming && !error && <div className="text-white">Waiting for confirmation...</div>}
-                        {isConfirmed && <div className="text-white">Transaction confirmed.</div>}
-                        {hash && (
-                            <div className='mt-2'>
-                                <a
-                                    className='bg-gray-600 px-2 py-2 w-full rounded-lg text-xs text-white block'
-                                    target='_blank'
-                                    rel='noopener noreferrer'
-                                    href={`https://basescan.org/tx/${hash}`}
-                                >
-                                    View on Basescan
-                                </a>
-                            </div>
-                        )}
-                        {error && (
-                            <div className="text-red-400">Error: {(error as any).shortMessage || error.message}</div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             <div className="relative z-10 container mx-auto px-4 sm:px-6 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center min-h-[calc(100vh-8rem)]">
@@ -319,7 +367,7 @@ function CreateOption() {
 
                                     {/* Call/Put Toggle */}
                                     <div className="flex items-center justify-between p-2 bg-gray-800 rounded-lg">
-                                        <span className="text-gray-300 text-xs font-medium">Call/Put</span>
+                                        <span className="text-gray-300 text-xs font-medium">Call (off) / Put (on)</span>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
@@ -413,8 +461,8 @@ function CreateOption() {
 
                                     {/* Locked WETH Display */}
                                     <div className="flex items-center justify-between p-2 bg-gray-800/50 border border-gray-700 rounded-lg">
-                                        <span className="text-gray-300 text-xs font-medium">Locked WETH</span>
-                                        <span className="text-white font-bold text-sm">{lockedWETH.toFixed(6)} WETH</span>
+                                        <span className="text-gray-300 text-xs font-medium">Locked ETH</span>
+                                        <span className="text-white font-bold text-sm">{lockedWETH.toFixed(6)} ETH</span>
                                     </div>
 
                                     {/* Submit Button */}
@@ -431,6 +479,16 @@ function CreateOption() {
                     </div>
                 </div>
             </div>
+
+            {/* Transaction Modal */}
+            <TransactionModal
+                isOpen={isTransactionModalOpen}
+                onClose={() => setIsTransactionModalOpen(false)}
+                steps={transactionSteps}
+                onExecuteStep={handleExecuteStep}
+                title="Create Option"
+                description="Create your gas option with collateral"
+            />
         </div>
     );
 }

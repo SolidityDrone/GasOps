@@ -6,9 +6,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Navbar from '@/components/Navbar'
 import TradingViewChart from '@/components/TradingViewChart'
+import TransactionModal from '@/components/TransactionModal'
 import Image from 'next/image'
 import { Clock, Filter, TrendingUp, TrendingDown, Activity, BarChart3 } from 'lucide-react'
 import { formatGwei } from 'viem'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { GasHedgerAddress, GasHedger_ABI } from '@/lib/abi/GasHedger_ABI'
+import { FakeWETHAddress, ERC20_ABI } from '@/lib/abi/ERC20_ABI'
 import {
     formatTimestamp,
     formatBigInt,
@@ -41,6 +45,15 @@ interface Option {
     isErrored: boolean | null
     isActive: boolean | null
     isPaused: boolean | null
+}
+
+interface TransactionStep {
+    id: string
+    title: string
+    description: string
+    status: 'pending' | 'loading' | 'success' | 'error'
+    error?: string
+    hash?: string
 }
 
 // Market data
@@ -197,6 +210,33 @@ export default function MarketsPage() {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
     const [inputValues, setInputValues] = useState<{ [key: string]: string }>({})
 
+    // Transaction modal state
+    const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
+    const [transactionSteps, setTransactionSteps] = useState<TransactionStep[]>([])
+    const [currentTransaction, setCurrentTransaction] = useState<{
+        optionId: string
+        units: string
+        totalPrice: bigint
+    } | null>(null)
+
+    const { address } = useAccount()
+    const { writeContract: writeApprove, data: approveHash } = useWriteContract()
+    const { writeContract: writeBuyOption, data: buyOptionHash } = useWriteContract()
+
+    const { isLoading: isApproveLoading, isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
+    const { isLoading: isBuyOptionLoading, isSuccess: isBuyOptionSuccess } = useWaitForTransactionReceipt({ hash: buyOptionHash })
+
+    // Read allowance
+    const { data: allowance } = useReadContract({
+        address: FakeWETHAddress,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: address ? [address, GasHedgerAddress] : undefined,
+        query: {
+            enabled: !!address,
+        },
+    })
+
     // Update countdown every second
     useEffect(() => {
         const interval = setInterval(() => {
@@ -259,6 +299,140 @@ export default function MarketsPage() {
         const chainId = getChainId(selectedMarket)
         fetchOptions(chainId, selectedTimeframe)
     }, [selectedMarket, selectedTimeframe])
+
+    // Handle buy option
+    const handleBuyOption = (option: Option) => {
+        const units = inputValues[option.id]
+        if (!units || parseInt(units) <= 0) {
+            alert('Please enter a valid number of units')
+            return
+        }
+
+        const unitsBigInt = BigInt(units)
+        const totalPrice = BigInt(option.premium) * unitsBigInt
+
+        setCurrentTransaction({
+            optionId: option.id,
+            units,
+            totalPrice
+        })
+
+        // Check if allowance is sufficient
+        const hasSufficientAllowance = allowance && allowance >= totalPrice
+
+        const steps: TransactionStep[] = []
+
+        if (!hasSufficientAllowance) {
+            steps.push({
+                id: 'approve',
+                title: 'Approve WETH Spending',
+                description: `Approve ${formatGwei(totalPrice)} WETH for option purchase`,
+                status: 'pending'
+            })
+        } else {
+            steps.push({
+                id: 'approve',
+                title: 'Approve WETH Spending',
+                description: `Approve ${formatGwei(totalPrice)} WETH for option purchase`,
+                status: 'success'
+            })
+        }
+
+        steps.push({
+            id: 'buyOption',
+            title: 'Buy Option',
+            description: `Purchase ${units} units of option #${option.id}`,
+            status: hasSufficientAllowance ? 'pending' : 'pending'
+        })
+
+        setTransactionSteps(steps)
+        setIsTransactionModalOpen(true)
+    }
+
+    // Handle transaction step execution
+    const handleExecuteStep = async (stepId: string) => {
+        if (!currentTransaction) return
+
+        const option = options.find(opt => opt.id === currentTransaction.optionId)
+        if (!option) return
+
+        try {
+            if (stepId === 'approve') {
+                // Check if approval is actually needed
+                const hasSufficientAllowance = allowance && allowance >= currentTransaction.totalPrice
+                if (hasSufficientAllowance) {
+                    // Skip approval and move to buy option
+                    setTransactionSteps(prev => prev.map(step =>
+                        step.id === 'buyOption' ? { ...step, status: 'pending' } : step
+                    ))
+                    return
+                }
+
+                // Update step to loading
+                setTransactionSteps(prev => prev.map(step =>
+                    step.id === 'approve' ? { ...step, status: 'loading' } : step
+                ))
+
+                // Execute approve
+                writeApprove({
+                    address: FakeWETHAddress,
+                    abi: ERC20_ABI,
+                    functionName: 'approve',
+                    args: [GasHedgerAddress, currentTransaction.totalPrice]
+                })
+            } else if (stepId === 'buyOption') {
+                // Update step to loading
+                setTransactionSteps(prev => prev.map(step =>
+                    step.id === 'buyOption' ? { ...step, status: 'loading' } : step
+                ))
+
+                // Execute buy option
+                writeBuyOption({
+                    address: GasHedgerAddress,
+                    abi: GasHedger_ABI,
+                    functionName: 'buyOption',
+                    args: [BigInt(currentTransaction.optionId), BigInt(currentTransaction.units)]
+                })
+            }
+        } catch (error) {
+            console.error('Transaction failed:', error)
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === stepId ? {
+                    ...step,
+                    status: 'error',
+                    error: error instanceof Error ? error.message : 'Transaction failed'
+                } : step
+            ))
+        }
+    }
+
+    // Handle transaction status updates
+    useEffect(() => {
+        if (isApproveLoading) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'approve' ? { ...step, status: 'loading' } : step
+            ))
+        } else if (isApproveSuccess && approveHash) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'approve' ? { ...step, status: 'success', hash: approveHash } : step
+            ))
+        }
+    }, [isApproveLoading, isApproveSuccess, approveHash])
+
+    useEffect(() => {
+        if (isBuyOptionLoading) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'buyOption' ? { ...step, status: 'loading' } : step
+            ))
+        } else if (isBuyOptionSuccess && buyOptionHash) {
+            setTransactionSteps(prev => prev.map(step =>
+                step.id === 'buyOption' ? { ...step, status: 'success', hash: buyOptionHash } : step
+            ))
+            // Refresh options data after successful purchase
+            const chainGasId = getChainId(selectedMarket)
+            fetchOptions(chainGasId, selectedTimeframe)
+        }
+    }, [isBuyOptionLoading, isBuyOptionSuccess, buyOptionHash])
 
     // Filter options based on selected criteria
     const filteredOptions = options.filter(option => {
@@ -577,10 +751,14 @@ export default function MarketsPage() {
                                                             min="1"
                                                             max={parseInt(option.unitsLeft || '0')}
                                                             placeholder="Units"
+                                                            value={inputValues[option.id] || ''}
+                                                            onChange={(e) => handleInputChange(option.id, e.target.value, parseInt(option.unitsLeft || '0'))}
                                                             className="bg-gray-800 border border-gray-600 rounded-l px-1 py-1 text-white text-xs w-12 focus:outline-none focus:border-gray-400"
                                                         />
                                                         <button
-                                                            className="bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded-r border border-gray-600 transition-colors"
+                                                            onClick={() => handleBuyOption(option)}
+                                                            disabled={!address || !inputValues[option.id] || parseInt(inputValues[option.id] || '0') <= 0}
+                                                            className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:text-gray-500 text-white text-xs px-2 py-1 rounded-r border border-gray-600 transition-colors"
                                                         >
                                                             Buy
                                                         </button>
@@ -600,6 +778,20 @@ export default function MarketsPage() {
                     </div>
                 </div>
             </section>
+
+            {/* Transaction Modal */}
+            <TransactionModal
+                isOpen={isTransactionModalOpen}
+                onClose={() => {
+                    setIsTransactionModalOpen(false)
+                    setCurrentTransaction(null)
+                    setTransactionSteps([])
+                }}
+                steps={transactionSteps}
+                onExecuteStep={handleExecuteStep}
+                title="Buy Option"
+                description="Complete the transaction to purchase your option"
+            />
         </div>
     )
 }
