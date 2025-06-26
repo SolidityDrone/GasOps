@@ -262,10 +262,10 @@ The protocol's decentralized nature aligns with the values of infrastructure pro
 
 The GasOps protocol has been successfully deployed on Base Sepolia testnet, representing a significant milestone in bringing gas derivatives to the Ethereum ecosystem. The deployment includes comprehensive testing and verification to ensure security and reliability.
 
-**Contract Address**: `0x674496ffFC1ad1A11eF5B41c191FD7a698A0Eb09`
+**Contract Address**: `0x7eCf113b2C5b882FF6DC9bde5c30cd9a20F9A807`
 **Network**: Base Sepolia Testnet
 **Verification Status**: ✅ Fully verified and audited
-**Explorer**: [View on BaseScan](https://sepolia.basescan.org/address/0x674496ffFC1ad1A11eF5B41c191FD7a698A0Eb09#code)
+**Explorer**: [View on BaseScan](https://sepolia.basescan.org/address/0x7eCf113b2C5b882FF6DC9bde5c30cd9a20F9A807#code)
 
 The deployment leverages Base's Layer 2 infrastructure to provide fast, cost-effective transactions while maintaining Ethereum's security guarantees. This choice reflects our commitment to providing accessible hedging tools that don't introduce additional cost barriers for infrastructure providers.
 

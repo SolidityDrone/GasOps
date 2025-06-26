@@ -8,7 +8,7 @@ import Navbar from '@/components/Navbar'
 import TradingViewChart from '@/components/TradingViewChart'
 import TransactionModal from '@/components/TransactionModal'
 import Image from 'next/image'
-import { Clock, Filter, TrendingUp, TrendingDown, Activity, BarChart3 } from 'lucide-react'
+import { Clock, Filter, TrendingUp, TrendingDown, Activity, BarChart3, RefreshCw } from 'lucide-react'
 import { formatGwei } from 'viem'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { GasHedgerAddress, GasHedger_ABI } from '@/lib/abi/GasHedger_ABI'
@@ -428,11 +428,78 @@ export default function MarketsPage() {
             setTransactionSteps(prev => prev.map(step =>
                 step.id === 'buyOption' ? { ...step, status: 'success', hash: buyOptionHash } : step
             ))
+
             // Refresh options data after successful purchase
             const chainGasId = getChainId(selectedMarket)
             fetchOptions(chainGasId, selectedTimeframe)
+
+            // Close modal after a short delay to show success
+            setTimeout(() => {
+                setIsTransactionModalOpen(false)
+                setCurrentTransaction(null)
+                setTransactionSteps([])
+                // Clear input values
+                setInputValues(prev => {
+                    const newValues = { ...prev }
+                    if (currentTransaction) {
+                        delete newValues[currentTransaction.optionId]
+                    }
+                    return newValues
+                })
+            }, 2000)
         }
-    }, [isBuyOptionLoading, isBuyOptionSuccess, buyOptionHash])
+    }, [isBuyOptionLoading, isBuyOptionSuccess, buyOptionHash, selectedMarket, selectedTimeframe])
+
+    // Auto-refresh data every 10 seconds for more responsive updates
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (!loading) {
+                const chainGasId = getChainId(selectedMarket)
+                fetchOptions(chainGasId, selectedTimeframe)
+            }
+        }, 10000) // 10 seconds for more frequent updates
+
+        return () => clearInterval(interval)
+    }, [selectedMarket, selectedTimeframe, loading])
+
+    // Refresh data when window regains focus (user returns to tab)
+    useEffect(() => {
+        const handleFocus = () => {
+            if (!loading) {
+                const chainGasId = getChainId(selectedMarket)
+                fetchOptions(chainGasId, selectedTimeframe)
+            }
+        }
+
+        window.addEventListener('focus', handleFocus)
+        return () => window.removeEventListener('focus', handleFocus)
+    }, [selectedMarket, selectedTimeframe, loading])
+
+    // Refresh data when user becomes active (moves mouse, clicks, etc.)
+    useEffect(() => {
+        let timeoutId: NodeJS.Timeout
+
+        const handleUserActivity = () => {
+            clearTimeout(timeoutId)
+            timeoutId = setTimeout(() => {
+                if (!loading) {
+                    const chainGasId = getChainId(selectedMarket)
+                    fetchOptions(chainGasId, selectedTimeframe)
+                }
+            }, 5000) // Refresh 5 seconds after user activity
+        }
+
+        window.addEventListener('mousemove', handleUserActivity)
+        window.addEventListener('click', handleUserActivity)
+        window.addEventListener('keydown', handleUserActivity)
+
+        return () => {
+            clearTimeout(timeoutId)
+            window.removeEventListener('mousemove', handleUserActivity)
+            window.removeEventListener('click', handleUserActivity)
+            window.removeEventListener('keydown', handleUserActivity)
+        }
+    }, [selectedMarket, selectedTimeframe, loading])
 
     // Filter options based on selected criteria
     const filteredOptions = options.filter(option => {

@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Navbar from "@/components/Navbar"
-import { useAccount } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { GasHedgerAddress, GasHedger_ABI } from '@/lib/abi/GasHedger_ABI'
 import {
     TrendingUp,
     TrendingDown,
@@ -24,6 +25,8 @@ import {
     Calendar,
     Plus,
     Eye,
+    CheckSquare,
+    Square,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import {
@@ -106,7 +109,13 @@ export default function DashboardPage() {
     const [openOptions, setOpenOptions] = useState<OpenOption[]>([])
     const [createdOptions, setCreatedOptions] = useState<CreatedOption[]>([])
     const [loading, setLoading] = useState(true)
+    const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+    const [claimLoading, setClaimLoading] = useState(false)
     const { address } = useAccount()
+
+    // Wagmi hooks for claiming
+    const { writeContract: writeClaimBatch, data: claimHash } = useWriteContract()
+    const { isLoading: isClaimLoading, isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimHash })
 
     const fetchUserData = async () => {
         if (!address) {
@@ -151,6 +160,70 @@ export default function DashboardPage() {
     useEffect(() => {
         fetchUserData()
     }, [address])
+
+    // Handle option selection
+    const handleOptionSelect = (optionId: string) => {
+        setSelectedOptions(prev => {
+            if (prev.includes(optionId)) {
+                return prev.filter(id => id !== optionId)
+            } else {
+                return [...prev, optionId]
+            }
+        })
+    }
+
+    // Handle select all claimable options
+    const handleSelectAllClaimable = () => {
+        const claimableOptions = openOptions
+            .filter(option => !option.claimed && option.option?.hasToPay)
+            .map(option => option.option?.id || '')
+            .filter(id => id !== '')
+
+        setSelectedOptions(claimableOptions)
+    }
+
+    // Handle deselect all
+    const handleDeselectAll = () => {
+        setSelectedOptions([])
+    }
+
+    // Handle batch claim
+    const handleBatchClaim = async () => {
+        if (selectedOptions.length === 0) {
+            alert('Please select at least one option to claim')
+            return
+        }
+
+        setClaimLoading(true)
+        try {
+            const optionIds = selectedOptions.map(id => BigInt(id))
+
+            writeClaimBatch({
+                address: GasHedgerAddress,
+                abi: GasHedger_ABI,
+                functionName: 'claimBatch',
+                args: [optionIds]
+            })
+        } catch (error) {
+            console.error('Error claiming options:', error)
+            setClaimLoading(false)
+        }
+    }
+
+    // Handle claim success
+    useEffect(() => {
+        if (isClaimSuccess) {
+            setClaimLoading(false)
+            setSelectedOptions([])
+            // Refresh data after successful claim
+            fetchUserData()
+        }
+    }, [isClaimSuccess])
+
+    // Update claim loading state
+    useEffect(() => {
+        setClaimLoading(isClaimLoading)
+    }, [isClaimLoading])
 
     const formatTimestamp = (timestamp: string): string => {
         return new Date(parseInt(timestamp) * 1000).toLocaleDateString()
@@ -305,10 +378,55 @@ export default function DashboardPage() {
                                             </CardDescription>
                                         </div>
                                     </div>
-                                    <Badge className="bg-gray-800/50 border-gray-700 text-gray-300">
-                                        {openOptions.length} positions
-                                    </Badge>
+                                    <div className="flex items-center space-x-2">
+                                        <Badge className="bg-gray-800/50 border-gray-700 text-gray-300">
+                                            {openOptions.length} positions
+                                        </Badge>
+                                        {selectedOptions.length > 0 && (
+                                            <Badge className="bg-blue-600 border-blue-500 text-white">
+                                                {selectedOptions.length} selected
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
+
+                                {/* Batch Claim Controls */}
+                                {openOptions.filter(option => !option.claimed && option.option?.hasToPay).length > 0 && (
+                                    <div className="flex items-center justify-between mt-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-gray-300 text-sm">Claimable Options:</span>
+                                            <span className="text-white text-sm font-medium">
+                                                {openOptions.filter(option => !option.claimed && option.option?.hasToPay).length}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                onClick={handleSelectAllClaimable}
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-xs border-gray-600 text-gray-300 hover:text-white"
+                                            >
+                                                Select All Claimable
+                                            </Button>
+                                            <Button
+                                                onClick={handleDeselectAll}
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-xs border-gray-600 text-gray-300 hover:text-white"
+                                            >
+                                                Deselect All
+                                            </Button>
+                                            <Button
+                                                onClick={handleBatchClaim}
+                                                disabled={selectedOptions.length === 0 || claimLoading}
+                                                size="sm"
+                                                className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                                            >
+                                                {claimLoading ? 'Claiming...' : `Claim ${selectedOptions.length} Options`}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </CardHeader>
                             <CardContent>
                                 {openOptions.length === 0 ? (
@@ -322,6 +440,9 @@ export default function DashboardPage() {
                                         <table className="w-full text-sm">
                                             <thead className="sticky top-0 bg-gray-900/90">
                                                 <tr className="border-b border-gray-700">
+                                                    <th className="text-left py-2 px-2 text-gray-300 text-xs">
+                                                        Select
+                                                    </th>
                                                     <th className="text-left py-2 px-2 text-gray-300 text-xs">
                                                         Asset
                                                     </th>
@@ -347,7 +468,7 @@ export default function DashboardPage() {
                                                         Timeframe
                                                     </th>
                                                     <th className="text-left py-2 px-2 text-gray-300 text-xs">
-                                                        Action
+                                                        Status
                                                     </th>
                                                 </tr>
                                             </thead>
@@ -366,6 +487,15 @@ export default function DashboardPage() {
 
                                                     return (
                                                         <tr key={index} className="border-b border-gray-800 hover:bg-gray-800/50">
+                                                            <td className="py-2 px-1">
+                                                                {!mapping.claimed && mapping.option?.hasToPay && (
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedOptions.includes(mapping.option?.id || '')}
+                                                                        onChange={() => handleOptionSelect(mapping.option?.id || '')}
+                                                                    />
+                                                                )}
+                                                            </td>
                                                             <td className="py-2 px-1 text-white text-xs">
                                                                 <div className="flex items-center space-x-2">
                                                                     <img
@@ -428,15 +558,18 @@ export default function DashboardPage() {
                                                                                 mapping.option.timeframe) : 'N/A'}
                                                             </td>
                                                             <td className="py-2 px-1">
-                                                                {!mapping.claimed && mapping.option?.hasToPay && (
-                                                                    <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white text-xs">
-                                                                        Claim
-                                                                    </Button>
-                                                                )}
-                                                                {mapping.claimed && (
-                                                                    <Button size="sm" className="bg-gray-500 text-white text-xs" disabled>
+                                                                {mapping.claimed ? (
+                                                                    <Badge className="bg-green-600 text-white text-xs">
                                                                         Claimed
-                                                                    </Button>
+                                                                    </Badge>
+                                                                ) : mapping.option?.hasToPay ? (
+                                                                    <Badge className="bg-yellow-600 text-white text-xs">
+                                                                        Ready to Claim
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge className="bg-gray-600 text-white text-xs">
+                                                                        Not Ready
+                                                                    </Badge>
                                                                 )}
                                                             </td>
                                                         </tr>

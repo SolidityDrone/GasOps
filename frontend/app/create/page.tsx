@@ -138,14 +138,14 @@ function CreateOption() {
             steps.push({
                 id: 'approve',
                 title: 'Approve WETH Spending',
-                description: `Approve ${formatGwei(totalCollateral)} WETH for option creation`,
+                description: `Approve ${(Number(totalCollateral) / 1e18).toFixed(6)} WETH for option creation`,
                 status: 'pending'
             });
         } else {
             steps.push({
                 id: 'approve',
                 title: 'Approve WETH Spending',
-                description: `Approve ${formatGwei(totalCollateral)} WETH for option creation`,
+                description: `Approve ${(Number(totalCollateral) / 1e18).toFixed(6)} WETH for option creation`,
                 status: 'success'
             });
         }
@@ -153,7 +153,7 @@ function CreateOption() {
         steps.push({
             id: 'createOption',
             title: 'Create Option',
-            description: `Create ${isCallValue ? 'call' : 'put'} option with ${formatGwei(convertToWei(s_premium))} premium`,
+            description: `Create ${isCallValue ? 'call' : 'put'} option`,
             status: hasSufficientAllowance ? 'pending' : 'pending'
         });
 

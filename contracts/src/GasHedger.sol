@@ -327,7 +327,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
     }
 
 
-    function performUpkeep(bytes calldata performData) external override OnlyForwarder{
+    function performUpkeep(bytes calldata performData) external override /*OnlyForwarder*/{
         (uint op, uint optionId) = abi.decode(performData, (uint, uint));
         if (op == 1){
             // check optionId
