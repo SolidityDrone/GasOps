@@ -1,4 +1,4 @@
-export const GasHedgerAddress = "0x674496ffFC1ad1A11eF5B41c191FD7a698A0Eb09" as `0x${string}`
+export const GasHedgerAddress = "0x7eCf113b2C5b882FF6DC9bde5c30cd9a20F9A807" as `0x${string}`
 export const GasHedger_ABI = [
     {
         "inputs": [

@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
             })
         })
 
+
         if (!response.ok) {
             throw new Error(`GraphQL request failed: ${response.status}`)
         }
