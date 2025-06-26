@@ -320,32 +320,26 @@ export default function MarketsPage() {
 
     return (
         <div className="min-h-screen bg-black relative overflow-hidden">
-            {/* Neon Grid Background */}
-            <div className="absolute inset-0 opacity-20">
+            {/* Subtle Grid Background */}
+            <div className="absolute inset-0 opacity-10">
                 <div
                     className="absolute inset-0"
                     style={{
                         backgroundImage: `
-            linear-gradient(rgba(255, 0, 255, 0.5) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.5) 1px, transparent 1px)
+            linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)
           `,
                         backgroundSize: "50px 50px",
                     }}
                 />
             </div>
 
-            {/* Neon Glowing Orbs */}
-            <div className="absolute top-20 left-20 w-96 h-96 bg-pink-500/30 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse" />
-
             <Navbar />
-
 
             {/* Market Selection Bar */}
             <section className="relative z-10 container mx-auto px-4 sm:px-6 py-6">
-                <div className="bg-black/80 border-2 border-pink-500 rounded-lg backdrop-blur-sm shadow-lg shadow-pink-500/30 p-2">
-                    <h2 className="text-lg font-black text-white mb-2 text-center uppercase tracking-wider">
+                <div className="bg-gray-900/50 border border-gray-800 rounded-lg backdrop-blur-sm p-2">
+                    <h2 className="text-lg font-bold text-white mb-2 text-center">
                         Select Market
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-2">
@@ -357,46 +351,42 @@ export default function MarketsPage() {
                                     key={market.id}
                                     onClick={() => setSelectedMarket(market.id)}
                                     className={`${isSelected
-                                        ? `bg-gradient-to-r ${colors.gradient} shadow-lg shadow-${market.color}-500/75`
-                                        : 'bg-gray-800 hover:bg-gray-700'
-                                        } text-white border-2 ${isSelected ? colors.border : 'border-gray-600'
-                                        } font-bold uppercase tracking-wider transition-all duration-300 p-1 h-auto`}
+                                        ? `bg-white text-black`
+                                        : 'bg-gray-800 hover:bg-gray-700 text-white'
+                                        } border border-gray-600 font-medium transition-all duration-300 p-3 h-auto`}
                                 >
-                                    <div className="flex flex-col items-center space-y-0">
+                                    <div className="flex flex-col items-center space-y-2">
                                         {market.icon.startsWith('/') ? (
-                                            <div className={`w-4 h-4 ${isSelected ? 'bg-white/20' : 'bg-gray-600'} rounded-lg flex items-center justify-center`}>
+                                            <div className={`w-12 h-12 ${isSelected ? 'bg-gray-200' : 'bg-gray-600'} rounded-lg flex items-center justify-center`}>
                                                 <Image
                                                     src={market.icon}
                                                     alt={market.name}
-                                                    width={12}
-                                                    height={12}
+                                                    width={36}
+                                                    height={36}
                                                     className="rounded"
                                                 />
                                             </div>
                                         ) : (
-                                            <span className="text-sm">{market.icon}</span>
+                                            <span className="text-lg">{market.icon}</span>
                                         )}
-                                        <span className="text-xs font-bold">{market.name}</span>
+                                        <span className="text-sm font-medium">{market.name}</span>
                                     </div>
                                 </Button>
                             )
                         })}
 
                         {/* Soon More Card - Inline */}
-                        <div className="relative">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg blur opacity-30" />
-                            <Card className="relative bg-black/90 border-2 border-gray-400 backdrop-blur-sm shadow-lg shadow-gray-400/30 h-full">
-                                <CardContent className="p-1 text-center flex flex-col items-center justify-center h-full">
-                                    <div className="flex items-center space-x-1 mb-0">
-                                        <div className="w-4 h-4 bg-gradient-to-r from-gray-400 to-gray-500 rounded-lg flex items-center justify-center shadow-lg shadow-gray-500/50">
-                                            <Clock className="w-2 h-2 text-white" />
-                                        </div>
-                                        <span className="text-gray-300 font-bold text-xs">Soon more...</span>
+                        <Card className="bg-gray-900/50 border border-gray-800 backdrop-blur-sm h-full">
+                            <CardContent className="p-3 text-center flex flex-col items-center justify-center h-full">
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
+                                        <Clock className="w-6 h-6 text-white" />
                                     </div>
-                                    <p className="text-gray-400 text-xs">Additional markets coming soon</p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                    <span className="text-gray-300 font-medium text-sm">Soon more...</span>
+                                </div>
+                                <p className="text-gray-400 text-xs">Additional markets coming soon</p>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </section>
@@ -415,19 +405,19 @@ export default function MarketsPage() {
 
                     {/* Order Book - Right Side */}
                     <div className="w-full lg:w-3/5">
-                        <div className="bg-black/80 border-2 border-purple-500 rounded-lg backdrop-blur-sm shadow-lg shadow-purple-500/30 p-4 h-full">
+                        <div className="bg-gray-900/50 border border-gray-800 rounded-lg backdrop-blur-sm p-4 h-full">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-xl font-bold text-white">Order Book</h3>
                                 {loading && (
                                     <div className="flex items-center space-x-2">
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
                                         <span className="text-gray-400 text-sm">Loading...</span>
                                     </div>
                                 )}
                             </div>
 
                             {/* Trading Interface Filters */}
-                            <div className="bg-black/60 border border-purple-400 rounded-lg p-4 mb-4">
+                            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-4">
                                 <div className="flex flex-wrap gap-4 items-center">
                                     {/* Timeframe Filter */}
                                     <div className="flex items-center space-x-2">
@@ -474,7 +464,7 @@ export default function MarketsPage() {
 
                             <div className="overflow-x-auto max-h-76 overflow-y-auto">
                                 <table className="w-full text-sm">
-                                    <thead className="sticky top-0 bg-black/90">
+                                    <thead className="sticky top-0 bg-gray-900/90">
                                         <tr className="border-b border-gray-700">
                                             <th
                                                 className="text-left py-2 px-2 text-gray-300 cursor-pointer hover:text-white transition-colors text-xs"
@@ -587,10 +577,10 @@ export default function MarketsPage() {
                                                             min="1"
                                                             max={parseInt(option.unitsLeft || '0')}
                                                             placeholder="Units"
-                                                            className="bg-gray-800 border border-gray-600 rounded-l px-1 py-1 text-white text-xs w-12 focus:outline-none focus:border-purple-400"
+                                                            className="bg-gray-800 border border-gray-600 rounded-l px-1 py-1 text-white text-xs w-12 focus:outline-none focus:border-gray-400"
                                                         />
                                                         <button
-                                                            className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-2 py-1 rounded-r border border-purple-600 transition-colors"
+                                                            className="bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded-r border border-gray-600 transition-colors"
                                                         >
                                                             Buy
                                                         </button>

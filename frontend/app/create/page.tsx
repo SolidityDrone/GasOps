@@ -186,32 +186,27 @@ function CreateOption() {
 
     return (
         <div className="min-h-screen bg-black relative overflow-hidden">
-            {/* Neon Grid Background */}
-            <div className="absolute inset-0 opacity-20">
+            {/* Subtle Grid Background */}
+            <div className="absolute inset-0 opacity-10">
                 <div
                     className="absolute inset-0"
                     style={{
                         backgroundImage: `
-            linear-gradient(rgba(255, 0, 255, 0.5) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.5) 1px, transparent 1px)
+            linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px)
           `,
                         backgroundSize: "50px 50px",
                     }}
                 />
             </div>
 
-            {/* Neon Glowing Orbs */}
-            <div className="absolute top-20 left-20 w-96 h-96 bg-pink-500/30 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500/30 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse" />
-
             <Navbar />
 
             {transacting && (
                 <div className="fixed top-0 left-0 w-screen h-screen flex items-center justify-center backdrop-blur-[1px] bg-gray-900 bg-opacity-30 z-50">
-                    <div className="bg-black/90 border border-blue-400 items-center text-center text-sm rounded-lg p-6 h-36 w-80">
+                    <div className="bg-gray-900/90 border border-gray-700 items-center text-center text-sm rounded-lg p-6 h-36 w-80">
                         {!isConfirmed && !error ? (
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-4"></div>
                         ) : !error ? (
                             <div className="flex mb-2 items-center justify-center">
                                 <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
@@ -238,7 +233,7 @@ function CreateOption() {
                         {hash && (
                             <div className='mt-2'>
                                 <a
-                                    className='bg-blue-600 px-2 py-2 w-full rounded-lg text-xs text-white block'
+                                    className='bg-gray-600 px-2 py-2 w-full rounded-lg text-xs text-white block'
                                     target='_blank'
                                     rel='noopener noreferrer'
                                     href={`https://basescan.org/tx/${hash}`}
@@ -260,26 +255,26 @@ function CreateOption() {
                     <div className="text-center lg:text-left">
                         <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
                             Create Your
-                            <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                            <span className="block text-gray-400">
                                 Gas Future
                             </span>
                         </h1>
                         <p className="text-xl text-gray-300 mb-8 leading-relaxed">
                             Hedge against gas price volatility with custom options.
                             <br />
-                            <span className="text-blue-400 font-semibold">Write options, earn premiums, manage risk.</span>
+                            <span className="text-white font-semibold">Write options, earn premiums, manage risk.</span>
                         </p>
                         <div className="space-y-4 text-left">
                             <div className="flex items-center space-x-3">
-                                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                                 <span className="text-gray-300">Choose your gas price target</span>
                             </div>
                             <div className="flex items-center space-x-3">
-                                <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                                 <span className="text-gray-300">Set premium and expiration</span>
                             </div>
                             <div className="flex items-center space-x-3">
-                                <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                                 <span className="text-gray-300">Lock collateral and start earning</span>
                             </div>
                         </div>
@@ -287,16 +282,16 @@ function CreateOption() {
 
                     {/* Right side - Form */}
                     <div className="max-w-md mx-auto lg:mx-0">
-                        <Card className="bg-black/90 border-2 border-blue-400 backdrop-blur-sm shadow-lg shadow-blue-400/30">
+                        <Card className="bg-gray-900/50 border border-gray-800 backdrop-blur-sm">
                             <CardContent className="p-4">
 
                                 <form onSubmit={submit} className="space-y-3">
                                     {/* Chain Gas ID Selection */}
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-blue-400">Chain Gas ID</label>
+                                        <label className="text-xs font-medium text-gray-300">Chain Gas ID</label>
                                         <select
                                             name="chainGasId"
-                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                             required
                                         >
                                             <option value="">Select Chain</option>
@@ -309,10 +304,10 @@ function CreateOption() {
 
                                     {/* Timeframe Selection */}
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-blue-400">Timeframe</label>
+                                        <label className="text-xs font-medium text-gray-300">Timeframe</label>
                                         <select
                                             name="timeframe"
-                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                             required
                                         >
                                             <option value="">Select Timeframe</option>
@@ -324,26 +319,26 @@ function CreateOption() {
 
                                     {/* Call/Put Toggle */}
                                     <div className="flex items-center justify-between p-2 bg-gray-800 rounded-lg">
-                                        <span className="text-blue-400 text-xs font-medium">Call/Put</span>
+                                        <span className="text-gray-300 text-xs font-medium">Call/Put</span>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 name="isCall"
                                                 className="sr-only peer"
                                             />
-                                            <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                            <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gray-600"></div>
                                         </label>
                                     </div>
 
                                     {/* Strike Price */}
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-blue-400">Strike Price (Gwei)</label>
+                                        <label className="text-xs font-medium text-gray-300">Strike Price (Gwei)</label>
                                         <input
                                             name="strike"
                                             type="number"
                                             step="0.000001"
                                             min="0.000001"
-                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                             placeholder="Enter strike price"
                                             required
                                         />
@@ -351,13 +346,13 @@ function CreateOption() {
 
                                     {/* Premium Cost */}
                                     <div className="space-y-1">
-                                        <label className="text-xs font-medium text-blue-400">Premium Cost (Gwei)</label>
+                                        <label className="text-xs font-medium text-gray-300">Premium Cost (Gwei)</label>
                                         <input
                                             name="premium"
                                             type="number"
                                             step="0.000001"
                                             min="0.000001"
-                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                            className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                             placeholder="Enter premium cost"
                                             required
                                         />
@@ -366,26 +361,26 @@ function CreateOption() {
                                     {/* Units and Cap Per Unit - Same Line */}
                                     <div className="grid grid-cols-10 gap-2">
                                         <div className="col-span-3 space-y-1">
-                                            <label className="text-xs font-medium text-blue-400">Units</label>
+                                            <label className="text-xs font-medium text-gray-300">Units</label>
                                             <input
                                                 name="units"
                                                 type="number"
                                                 step="0.000001"
                                                 min="0.000001"
-                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                                 placeholder="Enter units"
                                                 required
                                                 onChange={(e) => setUnits(e.target.value)}
                                             />
                                         </div>
                                         <div className="col-span-7 space-y-1">
-                                            <label className="text-xs font-medium text-blue-400">Cap Per Unit (Gwei)</label>
+                                            <label className="text-xs font-medium text-gray-300">Cap Per Unit (Gwei)</label>
                                             <input
                                                 name="capPerUnit"
                                                 type="number"
                                                 step="0.000001"
                                                 min="0.000001"
-                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                                 placeholder="Enter cap per unit"
                                                 required
                                                 onChange={(e) => setCapPerUnit(e.target.value)}
@@ -396,20 +391,20 @@ function CreateOption() {
                                     {/* Expiration Date and Buy-in Deadline - Same Line */}
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-blue-400">Expiration Date</label>
+                                            <label className="text-xs font-medium text-gray-300">Expiration Date</label>
                                             <input
                                                 name="expirationDate"
                                                 type="datetime-local"
-                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                                 required
                                             />
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-medium text-blue-400">Buy-in Deadline</label>
+                                            <label className="text-xs font-medium text-gray-300">Buy-in Deadline</label>
                                             <input
                                                 name="deadlineDate"
                                                 type="datetime-local"
-                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-400 focus:outline-none text-sm"
+                                                className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-gray-400 focus:outline-none text-sm"
                                                 placeholder="Enter buy-in deadline"
                                                 required
                                             />
@@ -417,15 +412,15 @@ function CreateOption() {
                                     </div>
 
                                     {/* Locked WETH Display */}
-                                    <div className="flex items-center justify-between p-2 bg-blue-900/20 border border-blue-400 rounded-lg">
-                                        <span className="text-blue-400 text-xs font-medium">Locked WETH</span>
+                                    <div className="flex items-center justify-between p-2 bg-gray-800/50 border border-gray-700 rounded-lg">
+                                        <span className="text-gray-300 text-xs font-medium">Locked WETH</span>
                                         <span className="text-white font-bold text-sm">{lockedWETH.toFixed(6)} WETH</span>
                                     </div>
 
                                     {/* Submit Button */}
                                     <Button
                                         type="submit"
-                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg shadow-blue-500/25 text-sm"
+                                        className="w-full bg-white hover:bg-gray-100 text-black font-medium py-2 px-4 rounded-lg transition-all duration-200 text-sm"
                                         disabled={transacting}
                                     >
                                         {transacting ? 'Creating Option...' : 'Create Option'}

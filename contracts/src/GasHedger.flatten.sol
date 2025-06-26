@@ -5098,7 +5098,17 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
     uint64 public subscriptionId;
     uint32 public gasLimit;
     uint256[] public activeOptions;
+    address public forwarder;
+
     
+    modifier OnlyForwarder {
+        if (msg.sender != forwarder){
+
+            _;
+            revert() ;
+        }
+    }
+
     constructor(
         address _owner, // owner of the contract
         address _router // Functions client's router
@@ -5110,7 +5120,8 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         address _wethAddress,
         uint32 _gasLimit,
         bytes32 _donID,
-        uint64 _subscriptionId
+        uint64 _subscriptionId,
+        address _forwarder
     ) external onlyOwner {
         require(!isInitialized, "GasHedger: already initialized");
         wethAddress = _wethAddress;
@@ -5118,6 +5129,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         donID = _donID;
         subscriptionId = _subscriptionId;
         isInitialized = true;
+        forwarder = _forwarder;
     }
 
     function setUrlForChainId(uint chainGasId, string memory url) public onlyOwner {
@@ -5127,7 +5139,12 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
     function getUrlForChainId(uint chainGasId) public view returns (string memory) {
         return chainIdToUrl[chainGasId];
     }
-  
+    
+    function setUrlForChainIds(uint[] memory chainGasId, string[] memory urls) public onlyOwner {
+        for (uint i; i < chainGasId.length; i++){
+            setUrlForChainId(chainGasId[i], urls[i]);
+        }
+    }
 
     function createOption(
         bool isCallOption,
@@ -5196,7 +5213,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         emit OptionCreated(lastOptionId, msg.sender, isCallOption, premium, strikePrice, expirationDate, buyDeadline, units, capPerUnit, chainGasId, timeframe);
     }
  
-  
+    
     function buyOption(uint256 id, uint256 units) public {
         // Get option from storage
         Option storage option = options[id];
@@ -5283,6 +5300,12 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         emit OptionClaimed(id, msg.sender, units, price);
     }
 
+    function claimBatch(uint256[] memory optionIds) public {
+        for (uint i; i < optionIds.length; i++){
+            claimOption(optionIds[i]);
+        }
+    }
+
     function deleteOption(uint256 id) public {
         // Get option from storage
         Option storage option = options[id];
@@ -5367,9 +5390,7 @@ contract GasHedger is ERC1155, FunctionsClient, AutomationCompatibleInterface, C
         }
     }
 
-  
-
-    function performUpkeep(bytes calldata performData) external override {
+    function performUpkeep(bytes calldata performData) external override OnlyForwarder{
         (uint op, uint optionId) = abi.decode(performData, (uint, uint));
         if (op == 1){
             // check optionId
